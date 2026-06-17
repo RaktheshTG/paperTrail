@@ -4,6 +4,7 @@ import { ArrowRight, Copy, RotateCcw, FileText, Sparkles, Check } from "lucide-r
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConceptMap } from "@/components/concept-map";
 import { ChatSidebar } from "@/components/chat-sidebar";
+import { askGemini } from "@/lib/gemini";
 import {
   DEMO_PAPER,
   DEMO_PAPERS,
@@ -45,7 +46,6 @@ function PaperTrail() {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!url.trim()) return;
-    // TODO: REPLACE WITH GEMINI API CALL — fetch and parse PDF from arXiv/PubMed URL
     setState("loading");
   };
 
@@ -56,7 +56,6 @@ function PaperTrail() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* URL bar — always visible */}
       <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-4">
           <div className="flex items-center gap-2 font-display text-base font-semibold">
@@ -120,9 +119,7 @@ function EmptyState({ onPick }: { onPick: (url: string) => void }) {
         </div>
 
         <div className="relative mx-auto max-w-xl">
-          {/* Signature dotted trail */}
           <div className="trail-dotted absolute bottom-6 left-7 top-6 w-px" aria-hidden />
-
           <div className="space-y-3">
             {DEMO_PAPERS.map((p, i) => (
               <button
@@ -169,7 +166,6 @@ function LoadingState({ message }: { message: string }) {
 function ResultsState() {
   return (
     <div className="animate-fade-in-up">
-      {/* Top bar */}
       <div className="mb-6 flex items-start justify-between gap-4 rounded-xl border bg-card p-5">
         <div>
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Now reading</div>
@@ -179,12 +175,9 @@ function ResultsState() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        {/* Left — Insights Dashboard (60%) */}
         <div className="lg:col-span-3">
           <InsightsDashboard />
         </div>
-
-        {/* Right — Chat (40%) */}
         <div className="lg:col-span-2">
           <div className="h-[680px] lg:sticky lg:top-24">
             <ChatSidebar />
@@ -217,7 +210,6 @@ function InsightsDashboard() {
 
   return (
     <div className="relative">
-      {/* Signature trail line down the left column */}
       <div className="trail-dotted pointer-events-none absolute -left-3 top-12 bottom-4 hidden w-px md:block" aria-hidden />
 
       <Tabs defaultValue="summary" className="w-full">
@@ -271,3 +263,6 @@ function InsightsDashboard() {
     </div>
   );
 }
+
+// TEMP TEST — remove after confirming
+askGemini("Say hello in one sentence.").then(console.log).catch(console.error);
