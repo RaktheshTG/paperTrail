@@ -137,3 +137,77 @@ paperTrail/
         ├── groq.ts       ← your AI API connection
         ├── demo-data.ts  ← hardcoded mock data for the demo state
         └── utils.ts      ← tiny helper (just a className merger)
+
+
+arXiv has urls that render in absolute and html
+plan is to render in html then remove tags using js because direct pdf transfer isnt 
+possible due to cors policies.
+Error note :
+Access to fetch at 'https://ar5iv.org/html/1706.03762' from origin
+'http://localhost:8080' has been blocked by CORS policy: No 'Access-Control-Allow-Origin'
+header is present on the requested resource.
+
+
+browser already has built-in HTML parsing via DOMParser:
+const parser = new DOMParser();
+const doc = parser.parseFromString(htmlString, "text/html");
+const text = doc.body.innerText; // strips all tags, gives plain text
+
+
+problem still persists so claude recommending allorigins.win
+Browser → allorigins.win → ar5iv.org → back to browser
+
+allorigins aint working ( trial 1 ) -> error 522 overload / site crash
+Unchecked runtime.lastError: The message port closed before a response was received.
+react-dom_client.js?v=5a3dd1b2:14337 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+(index):1 Access to fetch at 'https://api.allorigins.win/get?url=https%3A%2F%2Far5iv.org%2Fhtml%2F1706.03762' from origin 'http://localhost:8080' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+paper.ts:21  GET https://api.allorigins.win/get?url=https%3A%2F%2Far5iv.org%2Fhtml%2F1706.03762 net::ERR_FAILED 522
+(anonymous) @ paper.ts:21
+(anonymous) @ index.tsx:270
+TypeError: Failed to fetch
+    at fetchPaperText (paper.ts:21:23)
+    at index.tsx:270:1
+
+
+ALLORIGINS CONCEPT :
+The CORS problem is a browser security rule. When your React app (running at localhost:8080)
+tries to fetch from ar5iv.org, the browser checks:
+
+"Does ar5iv.org have a header saying it allows requests from localhost:8080?"
+
+ar5iv says no → browser blocks it. This isn't ar5iv being mean — it's a default 
+security policy. Servers have to explicitly opt in to allow cross-origin requests.
+allorigins is a middleman:
+
+Without proxy:
+Browser → ar5iv.org ✗ BLOCKED
+
+With allorigins:
+Browser → allorigins.win → ar5iv.org ✓ (server to server, no CORS rules)
+         ← allorigins wraps response in JSON ←
+         ← browser receives it fine ←
+
+Server-to-server requests don't have CORS restrictions — that's a browser-only rule.
+allorigins is just a tiny server that fetches any URL you give it and returns the
+content wrapped in JSON: ( thats whay res.json() not res.text()  and then data.contents to extract data )
+
+
+
+ok allorigins was down so shifted to same same but different corsproxy.io 
+it returns raw html not json to again back to res.text()
+CORSPROXY.IO AND FULL WORKING MECH :
+User pastes URL
+→ extractArxivId() pulls out "1706.03762"
+→ builds ar5iv URL: ar5iv.org/html/1706.03762
+→ sends it through corsproxy.io (bypasses CORS)
+→ gets back raw HTML of the paper
+→ DOMParser strips all HTML tags
+→ we have plain text of the paper
+→ trim to 12000 chars
+→ return { title, text }
+
+
+PROTOTYPE VERSIONS :
+Basic wrapper:     URL → full text → Groq → summary
+PaperTrail v1:    URL → smart extraction → structured prompts → 3 outputs + visual
+PaperTrail v2:    URL → RAG pipeline → grounded Q&A with citations → shareable links
