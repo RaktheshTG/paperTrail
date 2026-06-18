@@ -4,7 +4,7 @@ import { ArrowRight, Copy, RotateCcw, FileText, Sparkles, Check } from "lucide-r
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConceptMap } from "@/components/concept-map";
 import { ChatSidebar } from "@/components/chat-sidebar";
-import { askGemini } from "@/lib/gemini";
+
 import {
   DEMO_PAPER,
   DEMO_PAPERS,
@@ -264,5 +264,3 @@ function InsightsDashboard() {
   );
 }
 
-// TEMP TEST — remove after confirming
-askGemini("Say hello in one sentence.").then(console.log).catch(console.error);
