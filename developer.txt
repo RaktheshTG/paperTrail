@@ -250,3 +250,43 @@ AFTER: Sequential await
 Execution: Fires calls one after another (series).
 Loading UX: Separate loading message per step (e.g., "Reading page 1...", "Reading page 2...").
 Transparency: High (honest UX showing real-time progress).   
+
+MVP model halfway done. everything works as a basic groq api calling for 3 step answer.
+
+RAG PIPELINE :
+1. CHUNKING       — split the 80k character paper into small pieces (~500 tokens each)
+2. EMBEDDING      — convert each chunk into a vector (list of numbers representing meaning)
+3. STORAGE        — keep chunks + their vectors in memory (our "in-browser vector DB")
+4. RETRIEVAL      — when user asks a question, embed the question too, 
+                     find the chunks whose vectors are most "similar" to the question's vector
+5. GENERATION     — send ONLY those relevant chunks (not the whole paper) to Groq for the answer
+
+WHY RAG :
+Right now we just slice the first 3000 characters and hope the answer is in there. 
+If someone asks about something in section 5 of the paper, but we only sent section 1, 
+Groq can't answer correctly. RAG fixes this by actually finding the relevant part of the 
+paper for each specific question.
+
+
+
+EMBEDDINGS :
+An embedding turns text into a list of numbers (a vector) that captures meaning:
+"The Transformer uses attention" → [0.23, -0.81, 0.44, ... ] (1536 numbers)
+"Self-attention mechanism"        → [0.21, -0.79, 0.41, ... ] (very similar numbers!)
+"What did you eat for breakfast"  → [0.91, 0.12, -0.55, ... ] (very different numbers)
+
+To find "what's relevant to this question," we just measure the mathematical distance 
+between vectors — this is called cosine similarity. ( NLP )
+
+For generating embeddings (the vector conversion step), which approach?
+A: Cohere free embedding API (real embeddings, industry standard, free signup)
+
+COHERE API FOR GENERATING EMBEDDINGS 
+
+current directory info -
+src/lib/
+  ├── chunk.ts        ← NEW: splits paper text into overlapping chunks
+  ├── embeddings.ts    ← NEW: calls Cohere to get vectors for text
+  ├── vectorStore.ts   ← NEW: our "in-browser vector DB" — stores chunks + does similarity search
+  ├── groq.ts          ← UPDATED: askQuestion will now use retrieved chunks instead of raw slice
+  ├── paper.ts          (unchanged)
