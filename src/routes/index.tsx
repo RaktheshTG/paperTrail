@@ -7,8 +7,9 @@ import { ChatSidebar } from "@/components/chat-sidebar";
 import { fetchPaperText } from "@/lib/paper";
 import { generateSummary, generateWhyItMatters, generateConceptMap } from "@/lib/groq";
 import { DEMO_PAPERS, LOADING_MESSAGES } from "@/lib/demo-data";
-import "@/lib/embeddings";
-
+import { chunkText } from "@/lib/chunk";
+import { getEmbeddings } from "@/lib/embeddings";
+import { setVectorStore, clearVectorStore } from "@/lib/vectorStore";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -51,6 +52,15 @@ function PaperTrail() {
     try {
       setLoadingMsg("Fetching the paper...");
       const { title, text } = await fetchPaperText(url);
+
+      setLoadingMsg("Indexing the paper...");
+      clearVectorStore();
+      const chunks = chunkText(text);
+      const chunkTexts = chunks.map((c) => c.text);
+      const vectors = await getEmbeddings(chunkTexts, "search_document");
+      const embeddedChunks = chunks.map((chunk, i) => ({ chunk, vector: vectors[i] }));
+      setVectorStore(embeddedChunks);
+
 
       setLoadingMsg("Writing the summary...");
       const summary = await generateSummary(text);
@@ -218,7 +228,7 @@ function ResultsState({ paperData, onReset }: { paperData: PaperData; onReset: (
         </div>
         <div className="lg:col-span-2">
           <div className="h-[680px] lg:sticky lg:top-24">
-            <ChatSidebar paperText={paperData.text} />
+            <ChatSidebar />
           </div>
         </div>
       </div>

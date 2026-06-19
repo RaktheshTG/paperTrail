@@ -26,10 +26,10 @@ export async function getEmbeddings(texts: string[], inputType: "search_document
 }
 
 // TEMP TEST
-getEmbeddings(["The cat sat on the mat", "Attention mechanisms in transformers"], "search_document")
-  .then((vecs) => {
-    console.log("Number of vectors:", vecs.length);
-    console.log("Vector dimensions:", vecs[0].length);
-    console.log("First 5 numbers of vector 1:", vecs[0].slice(0, 5));
-  })
-  .catch(console.error);
+// getEmbeddings(["The cat sat on the mat", "Attention mechanisms in transformers"], "search_document")
+//   .then((vecs) => {
+//     console.log("Number of vectors:", vecs.length);
+//     console.log("Vector dimensions:", vecs[0].length);
+//     console.log("First 5 numbers of vector 1:", vecs[0].slice(0, 5));
+//   })
+//   .catch(console.error);

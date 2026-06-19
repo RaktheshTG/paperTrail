@@ -331,3 +331,28 @@ textbook def - A vector store is a specialized system designed to store and retr
 high-dimensional vector embeddings—numerical representations of data like text, 
 images, or audio—enabling semantic search and powering AI applications such as 
 Retrieval-Augmented Generation (RAG). 
+
+the code is basically calculating cosine similarity.
+
+
+ok so initially before vector store i was sending first 3k characters if user asks a query.
+so if a user asks a question from later sections ( more than 3k ) then it would be a 
+problem. 
+Now, after vectore store :
+ User asks a question → embed the question → 
+  search ALL chunks → find the 4 chunks whose MEANING is closest to the question →
+  send only THOSE specific chunks to Groq
+
+So if the paper has 50 chunks covering sections 1 through 10, and the user asks about 
+something in section 7, the old approach would miss it completely (since it only ever 
+sends the first 3000 characters = roughly section 1). The new approach finds and sends 
+the section 7 chunks specifically, no matter where in the paper they are.
+
+This is the actual "RETRIEVAL" in Retrieval-Augmented Generation — we retrieve the relevant 
+pieces first, then generate an answer using only those pieces.
+
+
+now need to update everywhere about this RAG concept 
+index, groq, sidebar.
+
+Indexing concept need to be explained ????????????????

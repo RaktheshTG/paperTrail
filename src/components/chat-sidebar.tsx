@@ -4,7 +4,7 @@ import { askQuestion } from "@/lib/groq";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-export function ChatSidebar({ paperText }: { paperText: string }) {
+export function ChatSidebar() {
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
@@ -29,7 +29,7 @@ export function ChatSidebar({ paperText }: { paperText: string }) {
     setMessages((m) => [...m, { role: "user", content: q }]);
 
     try {
-      const answer = await askQuestion(paperText, q, messages);
+      const answer = await askQuestion(q, messages);
       setMessages((m) => [...m, { role: "assistant", content: answer }]);
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "Sorry, something went wrong. Try again." }]);

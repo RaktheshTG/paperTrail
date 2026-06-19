@@ -1,3 +1,6 @@
+import { getEmbeddings } from "./embeddings";
+import { findRelevantChunks } from "./vectorStore";
+
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -79,11 +82,20 @@ export async function generateConceptMap(paperText: string): Promise<{
   }
 }
 
+
+
 export async function askQuestion(
-  paperText: string,
   question: string,
   history: { role: "user" | "assistant"; content: string }[]
 ): Promise<string> {
+  // Step 1: embed the question
+  const [questionVector] = await getEmbeddings([question], "search_query");
+
+  // Step 2: find the most relevant chunks from the vector store
+  const relevantChunks = findRelevantChunks(questionVector, 4);
+  const context = relevantChunks.map((c) => c.text).join("\n\n---\n\n");
+
+  // Step 3: send only those chunks to Groq
   const res = await fetch(GROQ_URL, {
     method: "POST",
     headers: {
@@ -97,8 +109,8 @@ export async function askQuestion(
           role: "system",
           content: `You are a helpful research assistant explaining a specific paper to a curious non-expert.
           Answer questions in plain English, be concise, use analogies where helpful.
-          Base your answers on this paper text:
-          ${paperText.slice(0, 3000)}`,
+          Base your answer ONLY on these relevant excerpts from the paper:
+          ${context}`,
         },
         ...history,
         { role: "user", content: question },
