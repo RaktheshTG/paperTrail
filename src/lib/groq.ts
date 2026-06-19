@@ -34,7 +34,7 @@ export async function generateSummary(paperText: string): Promise<string> {
     Write in plain English, avoid jargon, use analogies where helpful. 
     Structure your response as 4 clear paragraphs with a blank line between each.
     Do not use bullet points or headers.`,
-    `Here is the research paper text. Write a plain English summary:\n\n${paperText}`
+    `Here is the research paper text. Write a plain English summary:\n\n${paperText.slice(0, 6000)}`
   );
 }
 
@@ -44,7 +44,7 @@ export async function generateWhyItMatters(paperText: string): Promise<string> {
     Your audience is curious non-experts — smart people who want to understand impact.
     Write 3 paragraphs explaining: what problem this solves, who benefits, and what changes because of this work.
     Use plain English, no jargon. Separate paragraphs with a blank line.`,
-    `Here is the research paper text. Explain why it matters:\n\n${paperText}`
+    `Here is the research paper text. Explain why it matters:\n\n${paperText.slice(0, 4000)}`
   );
 }
 
@@ -65,14 +65,13 @@ export async function generateConceptMap(paperText: string): Promise<{
       ]
     }
     Extract 6-8 key concepts and their relationships. Use simple lowercase ids with underscores.`,
-    `Here is the research paper text. Extract the concept map:\n\n${paperText.slice(0, 8000)}`
+    `Here is the research paper text. Extract the concept map:\n\n${paperText.slice(0, 4000)}`
   );
 
   try {
     const cleaned = raw.replace(/```json|```/g, "").trim();
     return JSON.parse(cleaned);
   } catch {
-    // fallback if JSON parsing fails
     return {
       nodes: [{ id: "paper", label: "Research Paper", definition: "Could not parse concept map." }],
       edges: [],
@@ -80,9 +79,11 @@ export async function generateConceptMap(paperText: string): Promise<{
   }
 }
 
-export async function askQuestion(paperText: string, question: string, history: { role: "user" | "assistant"; content: string }[]): Promise<string> {
-  const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-  
+export async function askQuestion(
+  paperText: string,
+  question: string,
+  history: { role: "user" | "assistant"; content: string }[]
+): Promise<string> {
   const res = await fetch(GROQ_URL, {
     method: "POST",
     headers: {
@@ -97,14 +98,19 @@ export async function askQuestion(paperText: string, question: string, history: 
           content: `You are a helpful research assistant explaining a specific paper to a curious non-expert.
           Answer questions in plain English, be concise, use analogies where helpful.
           Base your answers on this paper text:
-          ${paperText.slice(0, 6000)}`
+          ${paperText.slice(0, 3000)}`,
         },
         ...history,
-        { role: "user", content: question }
+        { role: "user", content: question },
       ],
-      max_tokens: 512,
+      max_tokens: 400,
     }),
   });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err?.error?.message || "Groq API error");
+  }
 
   const data = await res.json();
   return data.choices[0].message.content;

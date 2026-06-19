@@ -1,0 +1,116 @@
+Stack Decision (Day 0)
+Before writing a line of code, lock this in:
+Frontend: Next.js 14 (App Router) + Tailwind + shadcn/ui
+
+Backend: Next.js API routes (keeps it one repo)
+
+AI: Claude API (claude-sonnet-4-6) — RAG pipeline, summaries, Q&A
+
+Vector DB: Pinecone free tier (or Chroma locally for dev)
+
+PDF parsing: pdf-parse (npm) or PyMuPDF via a small Python microservice
+
+Deployment: Vercel (zero config, fits Next.js perfectly)
+No database for v1 — session state in memory/localStorage. Keeps scope tight.
+
+Week 1 — Core Pipeline (Days 1–7)
+Goal: Paper in → chunks stored → summary out
+Day 1–2: Paper ingestion
+
+Input component: accepts arxiv URL (e.g. arxiv.org/abs/2301.xxxxx) or PubMed URL
+Fetch the PDF via arxiv's export endpoint (arxiv.org/pdf/ID)
+Parse PDF → extract full text, title, authors, abstract
+Chunk text into ~500 token overlapping chunks
+
+Day 3–4: RAG pipeline
+
+Embed chunks using Claude's embedding endpoint (or OpenAI text-embedding-3-small — cheaper for embeddings)
+Store in Pinecone with metadata (chunk index, page number, section header)
+Session key = paper URL hash, so the same paper doesn't re-embed
+
+Day 5–6: Generate the three outputs
+
+Call Claude once per output (or batch into one structured prompt):
+Output 1: Plain English summary (3–5 paragraphs, no jargon)
+Output 2: "Why it matters" — real-world impact, who cares, what changes
+Output 3: Key concepts list (for the concept map) — term + one-sentence definition
+Day 7: Basic UI shell
+
+URL input → loading state → three tab outputs
+No styling polish yet, just wired up end-to-end
+
+
+Week 2 — Q&A + Concept Map (Days 8–14)
+Goal: Interactive layer on top of the pipeline
+Day 8–9: Follow-up Q&A
+
+Chat interface below the outputs
+Each question → retrieve top-k relevant chunks → Claude answers grounded in the paper
+Show source chunk on hover ("from page 4") — builds trust
+Keep last 6 turns in context for conversational flow
+
+Day 10–11: Concept map
+
+Parse the concepts list Claude returned in Week 1
+Render with React Flow (free, excellent) — nodes = concepts, edges = relationships
+Have Claude also return a relationships[] array: [{ from: "transformer", to: "attention", label: "uses" }]
+Auto-layout with dagre algorithm (built into React Flow)
+This is your visual differentiator — make it look good
+
+Day 12–13: Adaptive depth toggle
+
+"Explain like I'm 18" / "I'm a grad student" mode
+Stored in React state, re-runs the summary prompt with a depth parameter
+This is the interview story: adaptive explanation depth based on user context
+
+Day 14: Error handling + edge cases
+
+Paper behind paywall? Show graceful message + suggest unpaywall.org
+PDF too large? Truncate to first 12k tokens + note it
+Bad URL? Validate before fetching
+
+
+Week 3 — Polish + Launch (Days 15–21)
+Goal: Ship something you're proud to share
+Day 15–16: UI polish
+
+Dark mode (research crowd loves it)
+Loading skeletons during processing (paper ingestion takes 5–10s)
+Mobile responsive — students will use this on phones
+Copy buttons on all outputs
+
+Day 17: Performance
+
+Cache processed papers by URL hash in Pinecone metadata
+If paper already processed, skip ingestion → instant load
+Add a subtle "Loaded from cache" indicator
+
+Day 18: Social sharing hooks
+
+"Share this paper explained" → generates a shareable URL with paper ID
+OG image generation (Next.js @vercel/og) showing paper title + your branding
+This is how it spreads on science Twitter
+
+Day 19: Demo paper + landing page
+
+Pre-process 3–5 famous papers (Attention Is All You Need, AlphaFold, etc.)
+Landing page shows these as clickable demos — zero friction to see value
+Above the fold: URL box + "Try a famous paper" buttons
+
+Day 20: Deploy + test
+
+Push to Vercel, set env vars
+Test on 10 different papers across domains
+Fix the inevitable PDF parsing edge cases
+
+Day 21: Launch
+
+Post on r/MachineLearning, r/academia, r/ChatGPT
+Tweet at science Twitter accounts
+Submit to HackerNews "Show HN"
+
+
+AI Maximization Strategy
+Since you want to maximize AI utilization, here's how Claude does the heavy lifting at every step:
+TaskHow AI handles itPaper chunking strategyClaude decides section boundaries, not just token splitsSummary generationMulti-shot prompt with adaptive depthConcept extractionStructured JSON output — concepts + relationshipsQ&ARAG-grounded with citation"Why it matters"Claude reasons about real-world impactOG image copyClaude generates the tagline dynamically
+One power move: use Claude to write your prompts. Paste your draft prompt into Claude, ask it to optimize for the output you want, then use that in production. Recursive AI.

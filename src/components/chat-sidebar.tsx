@@ -1,36 +1,41 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Send, Sparkles } from "lucide-react";
-import { DEMO_CHAT } from "@/lib/demo-data";
+import { askQuestion } from "@/lib/groq";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-export function ChatSidebar() {
-  const [messages, setMessages] = useState<Msg[]>(DEMO_CHAT);
+export function ChatSidebar({ paperText }: { paperText: string }) {
+  const [messages, setMessages] = useState<Msg[]>([
+    {
+      role: "assistant",
+      content: "Hi! I've read this paper. Ask me anything about it — I'll explain it in plain English.",
+    },
+  ]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const q = input.trim();
-    if (!q) return;
+    if (!q || loading) return;
+
     setInput("");
+    setLoading(true);
     setMessages((m) => [...m, { role: "user", content: q }]);
-    // TODO: REPLACE WITH GEMINI API CALL — answer follow-up question grounded in paper
-    // TODO: REPLACE WITH VECTOR DB — store and retrieve paper chunks for RAG
-    setTimeout(() => {
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          content:
-            "{{CHAT_RESPONSE}} — This is a demo response. Wire this up to the Gemini API with RAG over the paper's contents.",
-        },
-      ]);
-    }, 600);
+
+    try {
+      const answer = await askQuestion(paperText, q, messages);
+      setMessages((m) => [...m, { role: "assistant", content: answer }]);
+    } catch {
+      setMessages((m) => [...m, { role: "assistant", content: "Sorry, something went wrong. Try again." }]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,17 +53,22 @@ export function ChatSidebar() {
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={
-                m.role === "user"
-                  ? "max-w-[85%] rounded-xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground"
-                  : "max-w-[85%] rounded-xl rounded-bl-sm border bg-muted px-3 py-2 text-sm text-foreground"
-              }
-            >
+            <div className={
+              m.role === "user"
+                ? "max-w-[85%] rounded-xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground"
+                : "max-w-[85%] rounded-xl rounded-bl-sm border bg-muted px-3 py-2 text-sm text-foreground"
+            }>
               {m.content}
             </div>
           </div>
         ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="rounded-xl rounded-bl-sm border bg-muted px-3 py-2 text-sm text-muted-foreground">
+              Thinking...
+            </div>
+          </div>
+        )}
       </div>
 
       <form onSubmit={onSubmit} className="border-t p-3">
@@ -67,18 +77,19 @@ export function ChatSidebar() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask anything about this paper..."
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            disabled={loading}
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
           />
           <button
             type="submit"
-            aria-label="Send"
-            className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition hover:opacity-90"
+            disabled={loading || !input.trim()}
+            className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
           >
             <Send className="h-3.5 w-3.5" />
           </button>
         </div>
         <div className="mt-2 text-center text-[10px] uppercase tracking-wider text-muted-foreground">
-          Powered by AI
+          Powered by Groq
         </div>
       </form>
     </aside>

@@ -7,13 +7,17 @@ import {
   type Node,
   type NodeMouseHandler,
 } from "@xyflow/react";
-import { CONCEPT_MAP_DATA } from "@/lib/demo-data";
 
-// Simple radial layout for the demo concept map
-function buildGraph() {
-  const center = CONCEPT_MAP_DATA.nodes[0];
-  const others = CONCEPT_MAP_DATA.nodes.slice(1);
+type ConceptMapData = {
+  nodes: { id: string; label: string; definition: string }[];
+  edges: { from: string; to: string; label: string }[];
+};
+
+function buildGraph(data: ConceptMapData) {
+  const center = data.nodes[0];
+  const others = data.nodes.slice(1);
   const radius = 200;
+
   const nodes: Node[] = [
     {
       id: center.id,
@@ -30,7 +34,8 @@ function buildGraph() {
       } satisfies Node;
     }),
   ];
-  const edges: Edge[] = CONCEPT_MAP_DATA.edges.map((e, i) => ({
+
+  const edges: Edge[] = data.edges.map((e, i) => ({
     id: `e-${i}`,
     source: e.from,
     target: e.to,
@@ -39,23 +44,24 @@ function buildGraph() {
     labelBgStyle: { fill: "#0F1117" },
     style: { stroke: "rgba(196,185,255,0.45)" },
   }));
+
   return { nodes, edges };
 }
 
-export function ConceptMap() {
-  const initial = useMemo(buildGraph, []);
+export function ConceptMap({ data }: { data: ConceptMapData }) {
+  const graph = useMemo(() => buildGraph(data), [data]);
   const [selected, setSelected] = useState<{ label: string; definition: string } | null>(null);
 
   const onNodeClick = useCallback<NodeMouseHandler>((_, node) => {
-    const found = CONCEPT_MAP_DATA.nodes.find((n) => n.id === node.id);
+    const found = data.nodes.find((n) => n.id === node.id);
     if (found) setSelected({ label: found.label, definition: found.definition });
-  }, []);
+  }, [data]);
 
   return (
     <div className="relative h-[480px] w-full overflow-hidden rounded-xl border bg-background">
       <ReactFlow
-        nodes={initial.nodes}
-        edges={initial.edges}
+        nodes={graph.nodes}
+        edges={graph.edges}
         onNodeClick={onNodeClick}
         fitView
         fitViewOptions={{ padding: 0.25 }}
@@ -71,12 +77,7 @@ export function ConceptMap() {
               <div className="font-display text-sm font-semibold text-highlight">{selected.label}</div>
               <p className="mt-1 text-sm text-muted-foreground">{selected.definition}</p>
             </div>
-            <button
-              onClick={() => setSelected(null)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              ✕
-            </button>
+            <button onClick={() => setSelected(null)} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
           </div>
         </div>
       )}

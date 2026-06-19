@@ -211,3 +211,42 @@ PROTOTYPE VERSIONS :
 Basic wrapper:     URL → full text → Groq → summary
 PaperTrail v1:    URL → smart extraction → structured prompts → 3 outputs + visual
 PaperTrail v2:    URL → RAG pipeline → grounded Q&A with citations → shareable links
+
+---------------------------------------------- Day 1 End ------------------------------------
+
+Character limit increased to 80k in paper.ts ( const trimmed )
+
+Rate limit reached for model llama-3.3-70b-versatile in organization 
+org_01kvcy3k76fyarp9be9wrccz2d service tier on_demand on tokens per minute (TPM):
+ Limit 12000, Used 2872, Requested 11072. Please try again in 9.72s. Need more tokens?
+  Upgrade to Dev Tier today at https://console.groq.com/settings/billing
+Error because sending too much tokens per min
+
+Solution :
+instead of sending 80k for all 3 ( summary , concept map, why it matters ) parallely, i ll send
+6k 4k 4k respectively and not paralley and instead serially. ( resolved in groq.ts )
+
+changes in groq.ts
+FUNCTION             | CHANGE TYPE        | BEFORE                              | AFTER
+---------------------|--------------------|-------------------------------------|-------------------------------------
+generateSummary      | Input Truncation   | ${paperText} (full 80k chars)       | ${paperText.slice(0, 6000)}
+generateWhyItMatters | Input Truncation   | ${paperText} (full 80k chars)       | ${paperText.slice(0, 4000)}
+generateConceptMap   | Input Truncation   | .slice(0, 8000)                     | .slice(0, 4000)
+askQuestion          | Input Truncation   | .slice(0, 6000)                     | .slice(0, 3000)
+askQuestion          | Variable Scope     | GROQ_URL declared inside function   | Removed; uses top-level declaration
+askQuestion          | Error Handling     | No error handling on bad response   | Added if (!res.ok) check   
+
+
+
+changes in index.tsx
+BEFORE: Promise.all([...])
+--------------------------
+Execution: Fires all 3 Groq calls at the same time (parallel).
+Loading UX: One single message: "Reading through the pages..."
+Transparency: Low (user waits blindly for the slowest call).
+
+AFTER: Sequential await
+-----------------------
+Execution: Fires calls one after another (series).
+Loading UX: Separate loading message per step (e.g., "Reading page 1...", "Reading page 2...").
+Transparency: High (honest UX showing real-time progress).   
