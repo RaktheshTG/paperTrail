@@ -290,3 +290,44 @@ src/lib/
   ├── vectorStore.ts   ← NEW: our "in-browser vector DB" — stores chunks + does similarity search
   ├── groq.ts          ← UPDATED: askQuestion will now use retrieved chunks instead of raw slice
   ├── paper.ts          (unchanged)
+
+
+Embeddings work perfectly. "Vector dimensions: 1024" confirms Cohere converted your text 
+into a 1024-number list, and you can see the actual numbers.
+
+Think about how you, a human, know that "happy" and "joyful" mean similar things, but "happy" and "table" don't. You understand meaning. Computers don't naturally understand meaning — they only understand numbers.
+Embeddings solve this by converting text into a list of numbers (a vector) in such a way that:
+
+Similar meanings → similar numbers
+Different meanings → different numbers
+After vector number calc -> use cosine similarity
+
+Example 
+"The cat sat on the mat"              → [0.024, 0.011, 0.025, -0.004, -0.032, ... 1024 numbers total]
+"A feline rested on the rug"          → [0.021, 0.013, 0.024, -0.005, -0.030, ...] (VERY close numbers!)
+"Attention mechanisms in transformers" → [0.91, -0.55, 0.12, 0.77, -0.23, ...] (totally different numbers)
+
+Here's the real process (simplified):
+
+Cohere took billions of sentences from the internet
+
+They trained a neural network with a task: "predict which sentences are similar in 
+meaning and which aren't" (using techniques like contrastive learning — showing the
+model pairs of similar and dissimilar sentences millions of times)
+
+During training, the network adjusts millions of internal weights so that when you feed 
+text through it, the OUTPUT vector naturally places similar-meaning text close together
+
+After training is done, that network becomes the "embedding model" — you feed it your 
+sentence, it runs through all those learned weights, and outputs 1024 numbers
+
+----------------------------------- Day 2 END ----------------------------------------------
+
+VECTOR STORE :
+
+Used to calculate "meaning distance" between vectors to find similar words.
+
+textbook def - A vector store is a specialized system designed to store and retrieve
+high-dimensional vector embeddings—numerical representations of data like text, 
+images, or audio—enabling semantic search and powering AI applications such as 
+Retrieval-Augmented Generation (RAG). 

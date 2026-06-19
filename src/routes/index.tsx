@@ -7,6 +7,8 @@ import { ChatSidebar } from "@/components/chat-sidebar";
 import { fetchPaperText } from "@/lib/paper";
 import { generateSummary, generateWhyItMatters, generateConceptMap } from "@/lib/groq";
 import { DEMO_PAPERS, LOADING_MESSAGES } from "@/lib/demo-data";
+import "@/lib/embeddings";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
