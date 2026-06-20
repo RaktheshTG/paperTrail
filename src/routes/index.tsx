@@ -4,7 +4,7 @@ import { ArrowRight, Copy, RotateCcw, FileText, Sparkles, Check } from "lucide-r
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConceptMap } from "@/components/concept-map";
 import { ChatSidebar } from "@/components/chat-sidebar";
-import { fetchPaperText, extractArxivId } from "@/lib/paper";
+import { fetchAnyPaper, extractArxivId, extractPubMedId  } from "@/lib/paper";
 import { generateSummary, generateWhyItMatters, generateConceptMap } from "@/lib/groq";
 import { DEMO_PAPERS, LOADING_MESSAGES } from "@/lib/demo-data";
 import { chunkText } from "@/lib/chunk";
@@ -58,9 +58,9 @@ function PaperTrail() {
 
     try {
       setLoadingMsg("Fetching the paper...");
-      const { title, text } = await fetchPaperText(url);
-
-      const ns = extractArxivId(url) || "default";
+      const { title, text } = await fetchAnyPaper(url);
+      const pmId = extractPubMedId(url);
+      const ns = extractArxivId(url) || pmId?.id || "default";
 
       setLoadingMsg("Indexing the paper...");
       await clearVectorStore(ns);

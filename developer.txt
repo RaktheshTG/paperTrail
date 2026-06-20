@@ -464,3 +464,43 @@ index.tsx (reset)      | Now resets 'depth' and 'summaryCache' to ensure a fresh
 index.tsx (New Comp)   | Added <DepthToggle />: visible button showing active mode (highlighted) and pulsing icon while regenerating.
 index.tsx (Dashboard)  | InsightsDashboard "Summary" tab now renders <DepthToggle /> next to copy button; text fades to 40% opacity during regeneration.
 index.tsx (Props)      | Prop drilling: 'depth', 'onToggleDepth', and 'regenerating' passed from ResultsState → InsightsDashboard.   
+
+
+
+NEXT :
+
+Not only ArXiv but also PubMed, BioXiv and PDF Upload feature too.
+
+Question arises why not js upload the pdf to chatgpt or gemini or claude ?
+why my app is equal to it :-
+Use of RAG - this overthrows the burden of memory and having a context window for chatgpt.
+Where RAG actually wins — not raw quality, but specific properties:
+
+Capability                  | ChatGPT/Claude (Paste PDF)                          | PaperTrail (RAG)
+----------------------------|-----------------------------------------------------|---------------------------------------------------------------
+One-time summary            | Equal or better (bigger models, more context)       | Good
+Repeated follow-up questions| Context window fills up; gets expensive/slow; may "forget" earlier parts | Every question independently retrieves only what's relevant; stays fast and accurate no matter session length
+Structured, consistent output| You have to prompt-engineer it yourself each time  | Built-in: same UI, same 3 sections, every paper
+Cost at scale               | Sending the FULL paper on every single message      | Only sending 4 relevant chunks per question — cheaper, faster, scales better
+Visual concept map          | Doesn't exist                                       | Built-in differentiator
+Multi-paper comparison      | Have to re-paste each time                          | Could query across multiple papers' namespaces (future feature)   
+
+My app  :
+Purpose-built UX — zero friction, structured output, designed specifically for "explain 
+this paper to me" instead of a blank chat box
+
+Efficiency at scale — RAG means cost and speed don't degrade as conversations get longer, 
+which matters if someone uses this seriously across many questions or many papers
+
+The interview story — you're not pretending PaperTrail beats GPT-4 at raw intelligence. 
+You're demonstrating you understand when RAG is the right architecture and why (not 
+naively using it everywhere, but applying it where retrieval-at-scale genuinely 
+helps) — that nuanced understanding is what's actually valuable to show an interviewer
+
+
+The plan
+1. User pastes a PubMed URL (e.g. pubmed.ncbi.nlm.nih.gov/12345678 or a PMC ID)
+2. Extract the PMID or PMCID from the URL
+3. Call NCBI's E-utilities EFetch endpoint → get the full text XML (if open access)
+4. Parse the XML to extract title + body text
+5. If not open access → show a clear error message instead of failing silently
