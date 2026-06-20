@@ -504,3 +504,45 @@ The plan
 3. Call NCBI's E-utilities EFetch endpoint → get the full text XML (if open access)
 4. Parse the XML to extract title + body text
 5. If not open access → show a clear error message instead of failing silently
+
+Ok major problem regarding bioXiv :
+PROBLEM :
+The official bioRxiv API only returns metadata — title, abstract, authors, DOI — not full 
+text. Full text access requires a dedicated Amazon S3 "requester pays" bucket meant for 
+bulk text-data-mining, not single-article fetching, and needs an AWS account. 
+
+So its not the same old stuff as ArXiv or PubMed. However there is a workaround :
+: bioRxiv papers can often be converted to PMCIDs, since not all bioRxiv DOIs map to 
+PMC, but many do. Many bioRxiv/medRxiv preprints, once accepted to a journal, get 
+deposited into PMC — meaning our existing PubMed/PMC code might already handle a 
+meaningful chunk of these papers, if the user pastes the PMC link instead of the 
+bioRxiv link.
+
+Since most of the bioXiv already exists in PubMed PMC i am planning on skipping bioXiv.
+It is recommedned to skip just for the MVP. ( also pdf feature easily resolves this issue ).
+
+
+PDF FEATURE PLAN :
+1. Add a file upload input next to the URL input (or as an alternative)
+2. Read the PDF file in the browser
+3. Extract text from the PDF (need a PDF parsing library — browsers can't do this natively)
+4. Feed that text into our EXISTING pipeline (chunk → embed → Pinecone → summarize)
+
+ need a PDF-to-text library that works in the browser (client-side, no backend). The standard 
+ choice is pdf.js (Mozilla's library, same one Firefox uses to render PDFs).
+
+
+
+New file inside lib folder : pdfUpload.ts. its function :
+pdf.js loads the PDF and gives us access to each page
+
+For each page, getTextContent() extracts all text items (it reads the actual text layer of 
+the PDF, not OCR — so scanned image-only PDFs won't work, which is why we added that 
+error check)
+
+We join all pages together into one big string, same as our arXiv/PubMed text extraction
+The workerUrl import is required — pdf.js runs its heavy parsing in a separate background 
+thread (a "web worker") for performance, so we need to tell it where that worker 
+script lives
+
+library needed to install for text extraction from pdf : npm install pdfjs-dist

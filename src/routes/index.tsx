@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect,useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Copy, RotateCcw, FileText, Sparkles, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConceptMap } from "@/components/concept-map";
@@ -10,6 +10,8 @@ import { DEMO_PAPERS, LOADING_MESSAGES } from "@/lib/demo-data";
 import { chunkText } from "@/lib/chunk";
 import { getEmbeddings } from "@/lib/embeddings";
 import { setVectorStore, clearVectorStore } from "@/lib/vectorStore";
+import { extractTextFromPdf } from "@/lib/pdfUpload";
+import { Upload } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -88,6 +90,44 @@ function PaperTrail() {
       setState("empty");
     }
   };
+
+  const onFileUpload = async (file: File) => {
+  setError(null);
+  setState("loading");
+  setDepth("simpler");
+
+  try {
+    setLoadingMsg("Reading the PDF...");
+    const { title, text } = await extractTextFromPdf(file);
+
+    const ns = `pdf-${file.name.replace(/\W/g, "")}-${Date.now()}`;
+
+    setLoadingMsg("Indexing the paper...");
+    await clearVectorStore(ns);
+    setNamespace(ns);
+    const chunks = chunkText(text);
+    const chunkTexts = chunks.map((c) => c.text);
+    const vectors = await getEmbeddings(chunkTexts, "search_document");
+    const embeddedChunks = chunks.map((chunk, i) => ({ chunk, vector: vectors[i] }));
+    await setVectorStore(embeddedChunks, ns);
+
+    setLoadingMsg("Writing the summary...");
+    const summary = await generateSummary(text, "simpler");
+    setSummaryCache({ simpler: summary });
+
+    setLoadingMsg("Explaining why it matters...");
+    const whyItMatters = await generateWhyItMatters(text);
+
+    setLoadingMsg("Mapping key concepts...");
+    const conceptMap = await generateConceptMap(text);
+
+    setPaperData({ title, text, summary, whyItMatters, conceptMap });
+    setState("results");
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Something went wrong.");
+    setState("empty");
+  }
+};
 
   // NEW: toggle between simpler/technical summary
   const toggleDepth = async () => {
@@ -180,7 +220,7 @@ function PaperTrail() {
             {error}
           </div>
         )}
-        {state === "empty" && <EmptyState onPick={setUrl} />}
+        {state === "empty" && <EmptyState onPick={setUrl} onFileUpload={onFileUpload} />}
         {state === "loading" && <LoadingState message={loadingMsg} />}
         {state === "results" && paperData && (
           <ResultsState
@@ -197,8 +237,16 @@ function PaperTrail() {
   );
 }
 
-function EmptyState({ onPick }: { onPick: (url: string) => void }) {
-  return (
+function EmptyState({ onPick, onFileUpload }: { onPick: (url: string) => void; onFileUpload: (file: File) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === "application/pdf") {
+      onFileUpload(file);
+    }
+  };
+    return (
     <section className="mx-auto max-w-3xl py-12 text-center animate-fade-in-up">
       <h1 className="font-display text-5xl font-bold tracking-tight md:text-6xl">
         Research, <span className="text-highlight">Explained.</span>
@@ -232,10 +280,29 @@ function EmptyState({ onPick }: { onPick: (url: string) => void }) {
             ))}
           </div>
         </div>
+
+        <div className="mt-8 text-center">
+          <div className="text-xs text-muted-foreground mb-3">or</div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-2 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-card/70"
+          >
+            <Upload className="h-4 w-4" />
+            Upload a PDF instead
+          </button>
+        </div>
       </div>
     </section>
   );
 }
+
 
 function LoadingState({ message }: { message: string }) {
   return (
