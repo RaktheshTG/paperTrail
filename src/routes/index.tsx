@@ -4,7 +4,7 @@ import { ArrowRight, Copy, RotateCcw, FileText, Sparkles, Check } from "lucide-r
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConceptMap } from "@/components/concept-map";
 import { ChatSidebar } from "@/components/chat-sidebar";
-import { fetchPaperText } from "@/lib/paper";
+import { fetchPaperText, extractArxivId } from "@/lib/paper";
 import { generateSummary, generateWhyItMatters, generateConceptMap } from "@/lib/groq";
 import { DEMO_PAPERS, LOADING_MESSAGES } from "@/lib/demo-data";
 import { chunkText } from "@/lib/chunk";
@@ -36,6 +36,7 @@ export type PaperData = {
 
 function PaperTrail() {
   const [state, setState] = useState<AppState>("empty");
+  const [namespace, setNamespace] = useState<string>("");
   const [url, setUrl] = useState("");
   const [loadingIdx, setLoadingIdx] = useState(0);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
@@ -53,14 +54,16 @@ function PaperTrail() {
       setLoadingMsg("Fetching the paper...");
       const { title, text } = await fetchPaperText(url);
 
+      const ns = extractArxivId(url) || "default";
+
       setLoadingMsg("Indexing the paper...");
-      clearVectorStore();
+      await clearVectorStore(ns);
+      setNamespace(ns);
       const chunks = chunkText(text);
       const chunkTexts = chunks.map((c) => c.text);
       const vectors = await getEmbeddings(chunkTexts, "search_document");
       const embeddedChunks = chunks.map((chunk, i) => ({ chunk, vector: vectors[i] }));
-      setVectorStore(embeddedChunks);
-
+      await setVectorStore(embeddedChunks, ns);
 
       setLoadingMsg("Writing the summary...");
       const summary = await generateSummary(text);
@@ -84,6 +87,7 @@ function PaperTrail() {
     setUrl("");
     setPaperData(null);
     setError(null);
+    setNamespace("");
   };
 
   useEffect(() => {
@@ -145,7 +149,7 @@ function PaperTrail() {
         {state === "empty" && <EmptyState onPick={setUrl} />}
         {state === "loading" && <LoadingState message={loadingMsg} />}
         {state === "results" && paperData && (
-          <ResultsState paperData={paperData} onReset={reset} />
+          <ResultsState paperData={paperData} onReset={reset} namespace={namespace} />
         )}
       </main>
     </div>
@@ -206,7 +210,15 @@ function LoadingState({ message }: { message: string }) {
   );
 }
 
-function ResultsState({ paperData, onReset }: { paperData: PaperData; onReset: () => void }) {
+function ResultsState({
+  paperData,
+  onReset,
+  namespace,
+}: {
+  paperData: PaperData;
+  onReset: () => void;
+  namespace: string;
+}) {
   return (
     <div className="animate-fade-in-up">
       <div className="mb-6 flex items-start justify-between gap-4 rounded-xl border bg-card p-5">
@@ -228,7 +240,7 @@ function ResultsState({ paperData, onReset }: { paperData: PaperData; onReset: (
         </div>
         <div className="lg:col-span-2">
           <div className="h-[680px] lg:sticky lg:top-24">
-            <ChatSidebar />
+            <ChatSidebar namespace={namespace} />
           </div>
         </div>
       </div>

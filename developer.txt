@@ -356,3 +356,56 @@ now need to update everywhere about this RAG concept
 index, groq, sidebar.
 
 Indexing concept need to be explained ????????????????
+
+
+ACCOMPLISHED SO FAR :
+ Paper ingestion (arXiv)
+ Summary, Why It Matters, Concept Map generation  
+ Real RAG pipeline (chunking + embeddings + vector search)
+ Grounded Q&A using retrieval
+
+
+PENDING AFTER RAG :
+ In-browser vector store → swap for Pinecone (you said you want this later)
+ PubMed support and other resarch papers
+ Adaptive depth toggle ( wire up the UI ? ) -> adaptive explanation depth based on user context 
+ Source citation ( answer from which chunk and page no )
+ Adaptive depth toggle (UI exists, no logic)
+ Source citations ("from page 4")
+ Caching
+ Sharing/OG images  
+ Deployment
+
+
+Extra : 
+ History of papers support
+ Better and organized answers
+ Concept map depth and modifications
+ UI Redesign
+
+RAG Summary :
+1. chunk.ts        → splits paper text into overlapping pieces
+2. embeddings.ts    → Cohere converts each chunk into a 1024-number vector
+3. vectorStore.ts   → stores those vectors (currently in-browser, switching to Pinecone)
+                       AND does the similarity search to find relevant chunks
+4. groq.ts          → takes the relevant chunks, sends to Groq with the question, 
+                       gets back the answer, returns it to the UI
+
+
+Next PINECONE API CONFIGURATION INSTEAD OF VECTORSTORE IN MEMORY :
+
+Pinecone api key and host link added to .env file 
+Changes -
+Feature                | Before (In-Browser)                          | After (Pinecone)
+-----------------------|----------------------------------------------|-------------------------------------------------------
+Storage Location       | Local variable (let store: EmbeddedChunk[])  | Pinecone's servers
+setVectorStore()       | Assigns to local variable                    | HTTP POST to /vectors/upsert endpoint
+Similarity Calculation | Manual calculation (cosineSimilarity)        | Calculated internally by Pinecone via /query
+Execution Type         | Synchronous (instant)                        | Asynchronous (network call, requires await)
+Persistence            | Lost on page refresh                         | Persists in the cloud
+New Concept            | None                                         | Namespace (allows multiple papers in one index)   
+
+namespace concept :
+Why namespace? Without it, if you process paper A then paper B, both sets of chunks 
+would mix together in Pinecone and questions about paper B might retrieve chunks from 
+paper A. We use the paper's arXiv ID as the namespace so each paper's chunks stay isolated.

@@ -86,16 +86,13 @@ export async function generateConceptMap(paperText: string): Promise<{
 
 export async function askQuestion(
   question: string,
+  namespace: string,
   history: { role: "user" | "assistant"; content: string }[]
 ): Promise<string> {
-  // Step 1: embed the question
   const [questionVector] = await getEmbeddings([question], "search_query");
-
-  // Step 2: find the most relevant chunks from the vector store
-  const relevantChunks = findRelevantChunks(questionVector, 4);
+  const relevantChunks = await findRelevantChunks(questionVector, namespace, 4);
   const context = relevantChunks.map((c) => c.text).join("\n\n---\n\n");
 
-  // Step 3: send only those chunks to Groq
   const res = await fetch(GROQ_URL, {
     method: "POST",
     headers: {

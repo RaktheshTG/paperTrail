@@ -1,47 +1,89 @@
 import { type Chunk } from "./chunk";
 
+const PINECONE_API_KEY = import.meta.env.VITE_PINECONE_API_KEY;
+const PINECONE_HOST = import.meta.env.VITE_PINECONE_HOST;
+
 export type EmbeddedChunk = {
   chunk: Chunk;
   vector: number[];
 };
 
-// THE ACTUAL STORE — holds all embedded chunks for the current paper, in memory
-let store: EmbeddedChunk[] = [];
-
-// Save embedded chunks into the store (called once, when a paper is processed)
-export function setVectorStore(chunks: EmbeddedChunk[]) {
-  store = chunks;
-}
-
-// Clear the store (called when user loads a new paper)
-export function clearVectorStore() {
-  store = [];
-}
-
-export function cosineSimilarity(a: number[], b: number[]): number {
-  let dotProduct = 0;
-  let magnitudeA = 0;
-  let magnitudeB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    magnitudeA += a[i] * a[i];
-    magnitudeB += b[i] * b[i];
-  }
-
-  magnitudeA = Math.sqrt(magnitudeA);
-  magnitudeB = Math.sqrt(magnitudeB);
-
-  return dotProduct / (magnitudeA * magnitudeB);
-}
-
-// Search the CURRENT store for the most relevant chunks to a question vector
-export function findRelevantChunks(questionVector: number[], topK = 4): Chunk[] {
-  const scored = store.map((ec) => ({
-    chunk: ec.chunk,
-    score: cosineSimilarity(questionVector, ec.vector),
+// Upload embedded chunks to Pinecone
+// "namespace" lets us keep different papers separate within the same index
+export async function setVectorStore(embeddedChunks: EmbeddedChunk[], namespace: string) {
+  const vectors = embeddedChunks.map((ec) => ({
+    id: ec.chunk.id,
+    values: ec.vector,
+    metadata: { text: ec.chunk.text, index: ec.chunk.index },
   }));
 
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, topK).map((s) => s.chunk);
+  const res = await fetch(`${PINECONE_HOST}/vectors/upsert`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Api-Key": PINECONE_API_KEY,
+    },
+    body: JSON.stringify({
+      vectors,
+      namespace,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Pinecone upsert failed: ${err}`);
+  }
+}
+
+// Clear all vectors in a namespace (called when loading a new paper)
+export async function clearVectorStore(namespace: string) {
+  try {
+    await fetch(`${PINECONE_HOST}/vectors/delete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Api-Key": PINECONE_API_KEY,
+      },
+      body: JSON.stringify({
+        deleteAll: true,
+        namespace,
+      }),
+    });
+  } catch {
+    // namespace might not exist yet on first paper — safe to ignore
+  }
+}
+
+// Query Pinecone for the most relevant chunks to a question vector
+export async function findRelevantChunks(
+  questionVector: number[],
+  namespace: string,
+  topK = 4
+): Promise<Chunk[]> {
+  const res = await fetch(`${PINECONE_HOST}/query`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Api-Key": PINECONE_API_KEY,
+    },
+    body: JSON.stringify({
+      vector: questionVector,
+      topK,
+      namespace,
+      includeMetadata: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Pinecone query failed: ${err}`);
+  }
+
+  const data = await res.json();
+
+  return data.matches.map((match: any) => ({
+    id: match.id,
+    text: match.metadata.text,
+    index: match.metadata.index,
+  }));
 }
