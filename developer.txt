@@ -382,6 +382,7 @@ Extra :
  Better and organized answers
  Concept map depth and modifications
  UI Redesign
+ Highling important keywords and color them ( jargons )
 
 RAG Summary :
 1. chunk.ts        → splits paper text into overlapping pieces
@@ -409,3 +410,57 @@ namespace concept :
 Why namespace? Without it, if you process paper A then paper B, both sets of chunks 
 would mix together in Pinecone and questions about paper B might retrieve chunks from 
 paper A. We use the paper's arXiv ID as the namespace so each paper's chunks stay isolated.
+
+Accomplished :
+ Paper ingestion (arXiv)
+ Real RAG: chunking + Cohere embeddings + Pinecone vector DB
+ Grounded Q&A via Pinecone retrieval
+ Summary, Why It Matters, Concept Map
+
+Pending part 2 :
+ Adaptive depth toggle (you flagged this — UI button doesn't exist yet)
+ PubMed support  
+ Source citations ("from page 4")
+ Caching (skip re-processing same paper)
+ Sharing/OG images
+ Deployment to Vercel
+ Error handling polish
+
+
+A slight error regarding pinecone vector deletion :
+Why it's happening: Pinecone's REST API expects the delete endpoint slightly 
+differently — it's likely a namespace-not-found case (the very first time you submit 
+a paper, there's nothing to delete yet, so Pinecone returns 404). Since we wrapped it 
+in try/catch, it fails silently and doesn't break anything
+
+Solution :
+Only clearVectorStore actually changed its logic (new endpoint, new HTTP method, smarter 
+error handling). The other two functions (setVectorStore, findRelevantChunks) got one new 
+line each — just the version header — added for consistency and to prevent similar 
+version-mismatch issues from happening to them in the future.
+
+setVectorStore should keep using /vectors/upsert — that's correct and unchanged. 
+Only clearVectorStore changes to a different endpoint entirely (/namespaces/{namespace} 
+instead of /vectors/delete).
+
+
+NEXT :
+UI WIRE UP TOGGLE ( SIMPLE <-> TECHNICAL )
+
+The new button is added and which clicked simple it explains as if explaining to a 10 yo.
+This is done by changing the prompt given to groq via groq.ts but adding a query before asking
+it to explain to a 10 yo.
+If clicked again and toggled to technical, then it explains thinking that the user has prior
+experience in the STEM field this includes techincal jargons present in the paper.
+
+Summary of changes made :
+File/Location          | Change Description
+-----------------------|----------------------------------------------------------------------------------
+groq.ts                | generateSummary() now accepts a 'depth' param; system prompt branches based on it.
+index.tsx (State)      | Added 'depth', 'summaryCache', and 'regenerating' state variables.
+index.tsx (onSubmit)   | Seeds 'summaryCache' with the initial "simpler" summary upon submission.
+index.tsx (New Func)   | Added toggleDepth(): checks cache first, calls Groq if missing, updates state.
+index.tsx (reset)      | Now resets 'depth' and 'summaryCache' to ensure a fresh start for new papers.
+index.tsx (New Comp)   | Added <DepthToggle />: visible button showing active mode (highlighted) and pulsing icon while regenerating.
+index.tsx (Dashboard)  | InsightsDashboard "Summary" tab now renders <DepthToggle /> next to copy button; text fades to 40% opacity during regeneration.
+index.tsx (Props)      | Prop drilling: 'depth', 'onToggleDepth', and 'regenerating' passed from ResultsState → InsightsDashboard.   

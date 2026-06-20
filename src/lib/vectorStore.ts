@@ -22,11 +22,9 @@ export async function setVectorStore(embeddedChunks: EmbeddedChunk[], namespace:
     headers: {
       "Content-Type": "application/json",
       "Api-Key": PINECONE_API_KEY,
+      "X-Pinecone-API-Version": "2025-04",
     },
-    body: JSON.stringify({
-      vectors,
-      namespace,
-    }),
+    body: JSON.stringify({ vectors, namespace }),
   });
 
   if (!res.ok) {
@@ -34,23 +32,23 @@ export async function setVectorStore(embeddedChunks: EmbeddedChunk[], namespace:
     throw new Error(`Pinecone upsert failed: ${err}`);
   }
 }
-
 // Clear all vectors in a namespace (called when loading a new paper)
 export async function clearVectorStore(namespace: string) {
   try {
-    await fetch(`${PINECONE_HOST}/vectors/delete`, {
-      method: "POST",
+    const res = await fetch(`${PINECONE_HOST}/namespaces/${namespace}`, {
+      method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
         "Api-Key": PINECONE_API_KEY,
+        "X-Pinecone-API-Version": "2025-04",
       },
-      body: JSON.stringify({
-        deleteAll: true,
-        namespace,
-      }),
     });
+    // 404 here just means the namespace doesn't exist yet (first time this paper is processed) — totally fine
+    if (!res.ok && res.status !== 404) {
+      const err = await res.text();
+      console.warn("Pinecone delete warning:", err);
+    }
   } catch {
-    // namespace might not exist yet on first paper — safe to ignore
+    // network error or namespace genuinely doesn't exist — safe to ignore, we're about to recreate it anyway
   }
 }
 
@@ -65,6 +63,7 @@ export async function findRelevantChunks(
     headers: {
       "Content-Type": "application/json",
       "Api-Key": PINECONE_API_KEY,
+      "X-Pinecone-API-Version": "2025-04",
     },
     body: JSON.stringify({
       vector: questionVector,
@@ -80,7 +79,6 @@ export async function findRelevantChunks(
   }
 
   const data = await res.json();
-
   return data.matches.map((match: any) => ({
     id: match.id,
     text: match.metadata.text,

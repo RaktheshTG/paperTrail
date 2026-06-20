@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Copy, RotateCcw, FileText, Sparkles, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConceptMap } from "@/components/concept-map";
@@ -22,6 +22,7 @@ export const Route = createFileRoute("/")({
 });
 
 type AppState = "empty" | "loading" | "results";
+type Depth = "simpler" | "technical";
 
 export type PaperData = {
   title: string;
@@ -38,10 +39,14 @@ function PaperTrail() {
   const [state, setState] = useState<AppState>("empty");
   const [namespace, setNamespace] = useState<string>("");
   const [url, setUrl] = useState("");
-  const [loadingIdx, setLoadingIdx] = useState(0);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const [paperData, setPaperData] = useState<PaperData | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // NEW: adaptive depth state
+  const [depth, setDepth] = useState<Depth>("simpler");
+  const [summaryCache, setSummaryCache] = useState<{ simpler?: string; technical?: string }>({});
+  const [regenerating, setRegenerating] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -49,6 +54,7 @@ function PaperTrail() {
 
     setError(null);
     setState("loading");
+    setDepth("simpler"); // reset depth for new paper
 
     try {
       setLoadingMsg("Fetching the paper...");
@@ -66,7 +72,8 @@ function PaperTrail() {
       await setVectorStore(embeddedChunks, ns);
 
       setLoadingMsg("Writing the summary...");
-      const summary = await generateSummary(text);
+      const summary = await generateSummary(text, "simpler");
+      setSummaryCache({ simpler: summary });
 
       setLoadingMsg("Explaining why it matters...");
       const whyItMatters = await generateWhyItMatters(text);
@@ -82,12 +89,39 @@ function PaperTrail() {
     }
   };
 
+  // NEW: toggle between simpler/technical summary
+  const toggleDepth = async () => {
+    if (!paperData) return;
+    const newDepth: Depth = depth === "simpler" ? "technical" : "simpler";
+
+    // reuse cached version if we already generated it — saves an API call
+    if (summaryCache[newDepth]) {
+      setDepth(newDepth);
+      setPaperData({ ...paperData, summary: summaryCache[newDepth]! });
+      return;
+    }
+
+    setRegenerating(true);
+    try {
+      const newSummary = await generateSummary(paperData.text, newDepth);
+      setSummaryCache((prev) => ({ ...prev, [newDepth]: newSummary }));
+      setDepth(newDepth);
+      setPaperData({ ...paperData, summary: newSummary });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to regenerate summary.");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   const reset = () => {
     setState("empty");
     setUrl("");
     setPaperData(null);
     setError(null);
     setNamespace("");
+    setDepth("simpler");
+    setSummaryCache({});
   };
 
   useEffect(() => {
@@ -149,7 +183,14 @@ function PaperTrail() {
         {state === "empty" && <EmptyState onPick={setUrl} />}
         {state === "loading" && <LoadingState message={loadingMsg} />}
         {state === "results" && paperData && (
-          <ResultsState paperData={paperData} onReset={reset} namespace={namespace} />
+          <ResultsState
+            paperData={paperData}
+            onReset={reset}
+            namespace={namespace}
+            depth={depth}
+            onToggleDepth={toggleDepth}
+            regenerating={regenerating}
+          />
         )}
       </main>
     </div>
@@ -214,10 +255,16 @@ function ResultsState({
   paperData,
   onReset,
   namespace,
+  depth,
+  onToggleDepth,
+  regenerating,
 }: {
   paperData: PaperData;
   onReset: () => void;
   namespace: string;
+  depth: Depth;
+  onToggleDepth: () => void;
+  regenerating: boolean;
 }) {
   return (
     <div className="animate-fade-in-up">
@@ -236,7 +283,12 @@ function ResultsState({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
-          <InsightsDashboard paperData={paperData} />
+          <InsightsDashboard
+            paperData={paperData}
+            depth={depth}
+            onToggleDepth={onToggleDepth}
+            regenerating={regenerating}
+          />
         </div>
         <div className="lg:col-span-2">
           <div className="h-[680px] lg:sticky lg:top-24">
@@ -265,7 +317,41 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function InsightsDashboard({ paperData }: { paperData: PaperData }) {
+// NEW: the actual Simpler/Technical toggle button component
+function DepthToggle({
+  depth,
+  onToggle,
+  regenerating,
+}: {
+  depth: Depth;
+  onToggle: () => void;
+  regenerating: boolean;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={regenerating}
+      className="flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+    >
+      <span className={depth === "simpler" ? "text-highlight" : ""}>Simpler</span>
+      <span className="text-muted-foreground/40">↔</span>
+      <span className={depth === "technical" ? "text-highlight" : ""}>Technical</span>
+      {regenerating && <Sparkles className="h-3 w-3 animate-pulse text-primary" />}
+    </button>
+  );
+}
+
+function InsightsDashboard({
+  paperData,
+  depth,
+  onToggleDepth,
+  regenerating,
+}: {
+  paperData: PaperData;
+  depth: Depth;
+  onToggleDepth: () => void;
+  regenerating: boolean;
+}) {
   return (
     <div className="relative">
       <div className="trail-dotted pointer-events-none absolute -left-3 top-12 bottom-4 hidden w-px md:block" aria-hidden />
@@ -278,10 +364,11 @@ function InsightsDashboard({ paperData }: { paperData: PaperData }) {
 
         <TabsContent value="summary" className="mt-4">
           <div className="rounded-xl border bg-card p-6">
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex items-center justify-between">
+              <DepthToggle depth={depth} onToggle={onToggleDepth} regenerating={regenerating} />
               <CopyButton text={paperData.summary} />
             </div>
-            <div className="space-y-4 text-[15px] leading-relaxed text-foreground/90">
+            <div className={`space-y-4 text-[15px] leading-relaxed text-foreground/90 transition-opacity ${regenerating ? "opacity-40" : "opacity-100"}`}>
               {paperData.summary.split("\n\n").map((p, i) => (
                 <p key={i}>{p}</p>
               ))}

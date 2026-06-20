@@ -1,6 +1,3 @@
-import { getEmbeddings } from "./embeddings";
-import { findRelevantChunks } from "./vectorStore";
-
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -30,14 +27,20 @@ async function callGroq(systemPrompt: string, userContent: string, maxTokens = 1
   return data.choices[0].message.content;
 }
 
-export async function generateSummary(paperText: string): Promise<string> {
+export async function generateSummary(
+  paperText: string,
+  depth: "simpler" | "technical" = "simpler"
+): Promise<string> {
+  const depthInstruction =
+    depth === "simpler"
+      ? `Write for a curious non-expert with no technical background — imagine explaining to a smart friend who isn't in this field. Use everyday analogies, avoid jargon entirely. If you must use a technical term, immediately explain it in plain words.`
+      : `Write for a reader with a STEM or research background. Use proper technical terminology, be precise about methods and mechanisms, but still keep it readable — assume intelligence, not prior knowledge of this exact paper.`;
+
   return callGroq(
-    `You are an expert at explaining complex research papers to curious non-experts — 
-    people who are smart and interested but have no PhD. 
-    Write in plain English, avoid jargon, use analogies where helpful. 
+    `You are an expert at explaining complex research papers. ${depthInstruction}
     Structure your response as 4 clear paragraphs with a blank line between each.
     Do not use bullet points or headers.`,
-    `Here is the research paper text. Write a plain English summary:\n\n${paperText.slice(0, 6000)}`
+    `Here is the research paper text. Write a summary:\n\n${paperText.slice(0, 6000)}`
   );
 }
 
@@ -82,13 +85,14 @@ export async function generateConceptMap(paperText: string): Promise<{
   }
 }
 
-
-
 export async function askQuestion(
   question: string,
   namespace: string,
   history: { role: "user" | "assistant"; content: string }[]
 ): Promise<string> {
+  const { getEmbeddings } = await import("./embeddings");
+  const { findRelevantChunks } = await import("./vectorStore");
+
   const [questionVector] = await getEmbeddings([question], "search_query");
   const relevantChunks = await findRelevantChunks(questionVector, namespace, 4);
   const context = relevantChunks.map((c) => c.text).join("\n\n---\n\n");
