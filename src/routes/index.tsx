@@ -38,11 +38,29 @@ export type PaperData = {
 };
 
 function PaperTrail() {
-  const [state, setState] = useState<AppState>("empty");
-  const [namespace, setNamespace] = useState<string>("");
+  const [state, setState] = useState<AppState>(() => {
+    try {
+      const saved = localStorage.getItem("papertrail-session");
+      if (saved) return JSON.parse(saved).state ?? "empty";
+    } catch {}
+    return "empty";
+  });
+  const [namespace, setNamespace] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem("papertrail-session");
+      if (saved) return JSON.parse(saved).namespace ?? "";
+    } catch {}
+    return "";
+  });
   const [url, setUrl] = useState("");
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
-  const [paperData, setPaperData] = useState<PaperData | null>(null);
+  const [paperData, setPaperData] = useState<PaperData | null>(() => {
+    try {
+      const saved = localStorage.getItem("papertrail-session");
+      if (saved) return JSON.parse(saved).paperData ?? null;
+    } catch {}
+    return null;
+  });  
   const [error, setError] = useState<string | null>(null);
 
   // NEW: adaptive depth state
@@ -171,7 +189,15 @@ function PaperTrail() {
     setNamespace("");
     setDepth("simpler");
     setSummaryCache({});
+    localStorage.removeItem("papertrail-session");
   };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("papertrail-session", JSON.stringify({ state, namespace, paperData }));
+    } catch {}
+  }, [state, namespace, paperData]);
+
 
   useEffect(() => {
     if (state !== "loading") return;
@@ -494,27 +520,20 @@ function InsightsDashboard({
               <div className="space-y-4">
                 {sources.map((s, i) => (
                   <div key={s.id} className="rounded-lg border bg-background p-5">
-                      <div className="mb-3 flex items-center gap-2">
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
-                          {i + 1}
-                        </div>
-                        <div className="text-xs font-medium text-highlight">
-                          {s.page ? `Page ${s.page}` : `Section ${s.index + 1} of ${s.totalChunks}`}
-                        </div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
+                        {i + 1}
                       </div>
-                      <div className="space-y-2">
-                        {s.text.split(". ").reduce((acc: string[], sentence, idx, arr) => {
-                          // group sentences into small readable clusters of ~2 sentences each
-                          if (idx % 2 === 0) acc.push(sentence);
-                          else acc[acc.length - 1] += ". " + sentence;
-                          return acc;
-                        }, []).map((para, pi) => (
-                          <p key={pi} className="text-sm leading-relaxed text-foreground/80">{para}{!para.endsWith(".") ? "." : ""}</p>
-                        ))}
+                      <div className="text-xs font-medium text-highlight">
+                        {s.page ? `Page ${s.page}` : `Section ${s.index + 1} of ${s.totalChunks}`}
                       </div>
                     </div>
-                ))}
-              </div>
+                    <p className="text-sm leading-relaxed text-foreground/75">
+                      {s.text.length > 400 ? s.text.slice(0, 400).trim() + "…" : s.text}
+                    </p>
+                  </div>
+                  ))}
+                </div>
             ) : (
               <div className="text-sm text-muted-foreground">
                 Ask a question in the chat to see which parts of the paper were used.

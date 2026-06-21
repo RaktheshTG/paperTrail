@@ -67,7 +67,7 @@ export const DEMO_CHAT = [
 
 export const DEMO_PAPERS = [
   { title: "Attention Is All You Need", authors: "Vaswani et al., 2017", url: "https://arxiv.org/abs/1706.03762" },
-  { title: "AlphaFold 2", authors: "Jumper et al., 2021", url: "https://www.nature.com/articles/s41586-021-03819-2" },
+  { title: "BERT", authors: "Devlin et al., 2018", url: "https://arxiv.org/abs/1810.04805" },
   { title: "GPT-4 Technical Report", authors: "OpenAI, 2023", url: "https://arxiv.org/abs/2303.08774" },
 ];
 

@@ -40,12 +40,22 @@ export function ChatSidebar({
   namespace: string;
   onSourcesUpdate?: (sources: import("@/lib/chunk").Chunk[]) => void;
 }) {
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: "assistant",
-      content: "Hi! I've read this paper. Ask me anything about it — I'll explain it in plain English.",
-    },
-  ]);
+    const storageKey = `papertrail-chat-${namespace}`;
+
+    const [messages, setMessages] = useState<Msg[]>(() => {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) return JSON.parse(saved);
+      } catch {
+        // corrupted storage, fall through to default
+      }
+      return [
+        {
+          role: "assistant" as const,
+          content: "Hi! I've read this paper. Ask me anything about it — I'll explain it in plain English.",
+        },
+      ];
+    });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -53,6 +63,14 @@ export function ChatSidebar({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+    } catch {
+      // storage full or unavailable, fail silently
+    }
+  }, [messages, storageKey]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();

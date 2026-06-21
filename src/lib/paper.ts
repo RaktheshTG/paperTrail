@@ -51,9 +51,8 @@ export async function fetchPaperText(url: string): Promise<{ title: string; text
   .replace(/×10\^?\d+/g, "")                     // removes scientific notation artifacts
   .replace(/[a-zA-Z]+superscript[^\s]+/g, "")    // NEW: catches "superscript" pattern too
   .replace(/\\[a-zA-Z]+/g, "");                  // removes remaining LaTeX commands like \alpha
-
-  const trimmed = cleanedOfMath.replace(/\s+/g, " ").trim().slice(0, 80000);
-
+  const cleanedOfBadUnicode = cleanedOfMath.replace(/[\uD800-\uDFFF]/g, "");
+  const trimmed = cleanedOfBadUnicode.replace(/\s+/g, " ").trim().slice(0, 80000);
   return { title, text: trimmed };
 }
 

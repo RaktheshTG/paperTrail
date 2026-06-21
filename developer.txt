@@ -580,3 +580,96 @@ The plan :
 4. New "Sources" tab shows: the excerpt text + position/page + the matched chunk
 5. Highlight the key terms that caused the match (the words shared between 
    the question and the retrieved chunk)
+
+Problem after trial 1 :
+Groq was cooking up own answers apart from the research paper. so made the content prompt
+more stricter. this fixed the issue.
+
+bug 2 : math symbols werent getting rendered properly. they were coming like d_{k} etc u get
+the point. have to fix this.
+
+chat sidebar text cluttered. fixed with spacing and paragraphs.
+
+sources have a problem too. too muc cluttering and abrupt ending of words. have to fix this
+with sentence stop pattern recognition.
+
+
+Only one query is being allowed. Reason :
+This greeting has no sources field — that's fine on its own. But after message #1's real 
+exchange, messages now contains an assistant message that DOES have a sources field 
+attached (an array of Chunk objects). When we pass this whole messages array straight 
+into askQuestion, and askQuestion forwards it directly into Groq's API as the history, 
+Groq's API receives a message object with an unexpected extra sources key — likely 
+causing Groq to reject the request on the second call (first call has clean history 
+with just the greeting; second call has a real Q&A pair carrying baggage).
+
+in summary :
+We added a sources field to assistant messages (Step 12, a while back) so the UI could 
+show which paper excerpts backed each answer. That's purely a frontend display detail. 
+But the entire messages array — sources field and all — was being passed straight 
+into askQuestion, which forwards it directly into Groq's API as conversation history.
+Groq's API expects messages shaped like { role, content } only. The first message 
+in the array (the hardcoded greeting) was clean and had no sources, so question #1 
+worked fine. But once you asked question #1, the array gained a real assistant reply 
+WITH a sources array attached — and when message #2 fired, that extra field tagged 
+along and Groq's API rejected the malformed request.
+The fix: strip the sources field off every message right before sending to 
+Groq (cleanHistory), while keeping it intact in our own messages state for the
+UI to use. Two different shapes for two different purposes — one for Groq, one for display.
+
+WELL I DIDNT UNDERSTAND SHIT BUT IT IS FIXED :)
+
+ok new bug : on page refresh everything is gone, paper url, summary, concept map, even chat 
+sidebar too. Gonna fix it using localstorage.
+
+Plan :
+1. Save `messages` to localStorage every time it changes
+2. On component load, check localStorage for existing messages and restore them
+3. Tie storage to the specific paper (namespace) — so switching papers doesn't 
+   show the wrong chat history
+4. Clear it when starting a new paper (via "Try another paper")
+
+const storageKey = `papertrail-chat-${namespace}`;
+
+const [messages, setMessages] = useState<Msg[]>(() => {
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) return JSON.parse(saved);
+  } catch {
+    // corrupted storage, fall through to default
+  }
+  return [
+    {
+      role: "assistant" as const,
+      content: "Hi! I've read this paper. Ask me anything about it — I'll explain it in plain English.",
+    },
+  ];
+});
+
+useEffect(() => {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(messages));
+  } catch {
+    // storage full or unavailable, fail silently
+  }
+}, [messages, storageKey]); 
+
+done. stored in localstorage but page refresh brings back to home page. 
+instead of storing msgs in localstorage i have to save the full page itself.
+
+
+
+
+
+
+
+
+
+
+
+2 more bugs. in home page the other 2 papers : alphafold and gpt 4o review are showing error.
+alphafold is redirecting to nature.com link so reasonable error.
+gpt 4o is arxiv link only but error because of unicode crash ( somehow it surpassed text
+cleaning and broke when JSON-encoding for Pinecone. )
+
+const cleanedOfBadUnicode = cleanedOfMath.replace(/[\uD800-\uDFFF]/g, "");
