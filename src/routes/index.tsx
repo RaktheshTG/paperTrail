@@ -7,7 +7,7 @@ import { ChatSidebar } from "@/components/chat-sidebar";
 import { fetchAnyPaper, extractArxivId, extractPubMedId  } from "@/lib/paper";
 import { generateSummary, generateWhyItMatters, generateConceptMap } from "@/lib/groq";
 import { DEMO_PAPERS, LOADING_MESSAGES } from "@/lib/demo-data";
-import { chunkText } from "@/lib/chunk";
+import { chunkText, findPageForChunk  } from "@/lib/chunk";
 import { getEmbeddings } from "@/lib/embeddings";
 import { setVectorStore, clearVectorStore } from "@/lib/vectorStore";
 import { extractTextFromPdf } from "@/lib/pdfUpload";
@@ -48,6 +48,7 @@ function PaperTrail() {
   // NEW: adaptive depth state
   const [depth, setDepth] = useState<Depth>("simpler");
   const [summaryCache, setSummaryCache] = useState<{ simpler?: string; technical?: string }>({});
+  const [latestSources, setLatestSources] = useState<import("@/lib/chunk").Chunk[]>([]);
   const [regenerating, setRegenerating] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
@@ -98,7 +99,7 @@ function PaperTrail() {
 
   try {
     setLoadingMsg("Reading the PDF...");
-    const { title, text } = await extractTextFromPdf(file);
+    const { title, text, pageMap } = await extractTextFromPdf(file);
 
     const ns = `pdf-${file.name.replace(/\W/g, "")}-${Date.now()}`;
 
@@ -106,6 +107,14 @@ function PaperTrail() {
     await clearVectorStore(ns);
     setNamespace(ns);
     const chunks = chunkText(text);
+
+    let charPosition = 0;
+    chunks.forEach((c) => {
+      c.page = findPageForChunk(charPosition, pageMap);
+      charPosition += c.text.length;
+    });
+
+
     const chunkTexts = chunks.map((c) => c.text);
     const vectors = await getEmbeddings(chunkTexts, "search_document");
     const embeddedChunks = chunks.map((chunk, i) => ({ chunk, vector: vectors[i] }));
@@ -227,9 +236,11 @@ function PaperTrail() {
             paperData={paperData}
             onReset={reset}
             namespace={namespace}
+            sources={latestSources}
             depth={depth}
             onToggleDepth={toggleDepth}
             regenerating={regenerating}
+            onSourcesUpdate={setLatestSources}
           />
         )}
       </main>
@@ -325,6 +336,9 @@ function ResultsState({
   depth,
   onToggleDepth,
   regenerating,
+  sources,
+  onSourcesUpdate,
+  
 }: {
   paperData: PaperData;
   onReset: () => void;
@@ -332,6 +346,8 @@ function ResultsState({
   depth: Depth;
   onToggleDepth: () => void;
   regenerating: boolean;
+  sources: import("@/lib/chunk").Chunk[];
+  onSourcesUpdate: (sources: import("@/lib/chunk").Chunk[]) => void;
 }) {
   return (
     <div className="animate-fade-in-up">
@@ -355,11 +371,12 @@ function ResultsState({
             depth={depth}
             onToggleDepth={onToggleDepth}
             regenerating={regenerating}
+            sources={sources}
           />
         </div>
         <div className="lg:col-span-2">
           <div className="h-[680px] lg:sticky lg:top-24">
-            <ChatSidebar namespace={namespace} />
+            <ChatSidebar namespace={namespace} onSourcesUpdate={onSourcesUpdate} />
           </div>
         </div>
       </div>
@@ -413,20 +430,23 @@ function InsightsDashboard({
   depth,
   onToggleDepth,
   regenerating,
+  sources,
 }: {
   paperData: PaperData;
   depth: Depth;
   onToggleDepth: () => void;
   regenerating: boolean;
+  sources: import("@/lib/chunk").Chunk[];
 }) {
   return (
     <div className="relative">
       <div className="trail-dotted pointer-events-none absolute -left-3 top-12 bottom-4 hidden w-px md:block" aria-hidden />
       <Tabs defaultValue="summary" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-card">
+        <TabsList className="grid w-full grid-cols-4 bg-card">
           <TabsTrigger value="summary">Plain English Summary</TabsTrigger>
           <TabsTrigger value="map">Concept Map</TabsTrigger>
           <TabsTrigger value="why">Why It Matters</TabsTrigger>
+          <TabsTrigger value="sources">Sources</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary" className="mt-4">
@@ -462,6 +482,30 @@ function InsightsDashboard({
                 <p key={i}>{p}</p>
               ))}
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sources" className="mt-4">
+          <div className="rounded-xl border bg-card p-6">
+            <div className="mb-4 text-xs text-muted-foreground">
+              Excerpts used to answer your most recent question in the chat.
+            </div>
+            {sources && sources.length > 0 ? (
+              <div className="space-y-4">
+                {sources.map((s, i) => (
+                  <div key={s.id} className="rounded-lg border bg-background p-4">
+                    <div className="mb-2 text-xs font-medium text-highlight">
+                      {s.page ? `Page ${s.page}` : `Section ${s.index + 1} of ${s.totalChunks}`}
+                    </div>
+                    <p className="text-sm leading-relaxed text-foreground/80">{s.text}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Ask a question in the chat to see which parts of the paper were used.
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>

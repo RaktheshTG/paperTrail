@@ -2,9 +2,15 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { askQuestion } from "@/lib/groq";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string; sources?: import("@/lib/chunk").Chunk[] };
 
-export function ChatSidebar({ namespace }: { namespace: string }) {
+export function ChatSidebar({
+  namespace,
+  onSourcesUpdate,
+}: {
+  namespace: string;
+  onSourcesUpdate?: (sources: import("@/lib/chunk").Chunk[]) => void;
+}) {
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
@@ -29,8 +35,9 @@ export function ChatSidebar({ namespace }: { namespace: string }) {
     setMessages((m) => [...m, { role: "user", content: q }]);
 
     try {
-      const answer = await askQuestion(q,namespace,messages);
-      setMessages((m) => [...m, { role: "assistant", content: answer }]);
+      const { answer, sources } = await askQuestion(q,namespace,messages);
+      setMessages((m) => [...m, { role: "assistant", content: answer, sources }]);
+      onSourcesUpdate?.(sources);
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "Sorry, something went wrong. Try again." }]);
     } finally {

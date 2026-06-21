@@ -35,3 +35,11 @@ export function chunkText(text: string, chunkSize = 1500, overlap = 200): Chunk[
 }
 
 
+// Given a chunk's character position and a page map, find which page it starts on
+export function findPageForChunk(
+  chunkStartChar: number,
+  pageMap: { page: number; startChar: number; endChar: number }[]
+): number | undefined {
+  const match = pageMap.find((p) => chunkStartChar >= p.startChar && chunkStartChar < p.endChar);
+  return match?.page;
+}

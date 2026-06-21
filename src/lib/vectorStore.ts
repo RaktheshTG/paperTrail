@@ -14,8 +14,13 @@ export async function setVectorStore(embeddedChunks: EmbeddedChunk[], namespace:
   const vectors = embeddedChunks.map((ec) => ({
     id: ec.chunk.id,
     values: ec.vector,
-    metadata: { text: ec.chunk.text, index: ec.chunk.index },
-  }));
+    metadata: {
+      text: ec.chunk.text,
+      index: ec.chunk.index,
+      totalChunks: ec.chunk.totalChunks,
+      ...(ec.chunk.page !== undefined ? { page: ec.chunk.page } : {}),
+    },
+    }));
 
   const res = await fetch(`${PINECONE_HOST}/vectors/upsert`, {
     method: "POST",
@@ -83,5 +88,7 @@ export async function findRelevantChunks(
     id: match.id,
     text: match.metadata.text,
     index: match.metadata.index,
+    totalChunks: match.metadata.totalChunks,
+    page: match.metadata.page ?? undefined,
   }));
 }

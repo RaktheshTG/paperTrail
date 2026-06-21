@@ -89,7 +89,7 @@ export async function askQuestion(
   question: string,
   namespace: string,
   history: { role: "user" | "assistant"; content: string }[]
-): Promise<string> {
+): Promise<{ answer: string; sources: import("./chunk").Chunk[] }> {
   const { getEmbeddings } = await import("./embeddings");
   const { findRelevantChunks } = await import("./vectorStore");
 
@@ -126,5 +126,5 @@ export async function askQuestion(
   }
 
   const data = await res.json();
-  return data.choices[0].message.content;
+  return { answer: data.choices[0].message.content, sources: relevantChunks };
 }
