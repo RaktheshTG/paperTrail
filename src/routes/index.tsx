@@ -493,12 +493,26 @@ function InsightsDashboard({
             {sources && sources.length > 0 ? (
               <div className="space-y-4">
                 {sources.map((s, i) => (
-                  <div key={s.id} className="rounded-lg border bg-background p-4">
-                    <div className="mb-2 text-xs font-medium text-highlight">
-                      {s.page ? `Page ${s.page}` : `Section ${s.index + 1} of ${s.totalChunks}`}
+                  <div key={s.id} className="rounded-lg border bg-background p-5">
+                      <div className="mb-3 flex items-center gap-2">
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
+                          {i + 1}
+                        </div>
+                        <div className="text-xs font-medium text-highlight">
+                          {s.page ? `Page ${s.page}` : `Section ${s.index + 1} of ${s.totalChunks}`}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        {s.text.split(". ").reduce((acc: string[], sentence, idx, arr) => {
+                          // group sentences into small readable clusters of ~2 sentences each
+                          if (idx % 2 === 0) acc.push(sentence);
+                          else acc[acc.length - 1] += ". " + sentence;
+                          return acc;
+                        }, []).map((para, pi) => (
+                          <p key={pi} className="text-sm leading-relaxed text-foreground/80">{para}{!para.endsWith(".") ? "." : ""}</p>
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-sm leading-relaxed text-foreground/80">{s.text}</p>
-                  </div>
                 ))}
               </div>
             ) : (

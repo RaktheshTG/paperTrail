@@ -64,7 +64,8 @@ export function ChatSidebar({
     setMessages((m) => [...m, { role: "user", content: q }]);
 
     try {
-      const { answer, sources } = await askQuestion(q,namespace,messages);
+      const cleanHistory = messages.map(({ role, content }) => ({ role, content }));
+      const { answer, sources } = await askQuestion(q, namespace, cleanHistory);
       setMessages((m) => [...m, { role: "assistant", content: answer, sources }]);
       onSourcesUpdate?.(sources);
     } catch {
