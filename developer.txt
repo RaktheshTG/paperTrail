@@ -546,3 +546,37 @@ thread (a "web worker") for performance, so we need to tell it where that worker
 script lives
 
 library needed to install for text extraction from pdf : npm install pdfjs-dist
+
+------------------------------- Day 3 END -----------------------------------------------------
+
+PROGRESS :
+Accomplishments :
+arXiv ingestion
+PubMed/PMC ingestion (open access)
+PDF upload (covers everything else — IEEE, ResearchGate, Google Scholar downloads, bioRxiv, etc.)
+Real RAG: chunking + Cohere + Pinecone
+Grounded Q&A
+Summary, Why It Matters, Concept Map
+Adaptive depth toggle
+
+Pending :
+Chat history cap (last 6 messages — noted earlier, not yet built)
+Source citations in chat ("from page 4")
+Caching (skip re-processing the same paper twice)
+Error handling polish (edge cases, bad inputs)
+Deploy to Vercel
+Week 4 backlog: UI redesign, paper history, compare papers, term highlighting
+
+NEXT : 
+SOURCE CITATIONS : ( page reference or chunk from paper regarding query )
+Actually the exact page number is not possible for url upload of paper because pdf cannot be
+fetched very easily. However, for pdf upload the citation can show page number and details.
+Thus for url upload im planning on js showing the chunk of texts related to the query.
+
+The plan :
+1. Track which page each chunk came from (only meaningful for PDF uploads)
+2. Track chunk position (e.g. "Section 3 of 12") for arXiv/PubMed
+3. When a chat answer is generated, remember WHICH chunks were used
+4. New "Sources" tab shows: the excerpt text + position/page + the matched chunk
+5. Highlight the key terms that caused the match (the words shared between 
+   the question and the retrieved chunk)

@@ -2,6 +2,8 @@ export type Chunk = {
   id: string;
   text: string;
   index: number;
+  totalChunks: number;
+  page?: number; // only present for PDF uploads
 };
 
 // Splits text into overlapping chunks
@@ -19,12 +21,15 @@ export function chunkText(text: string, chunkSize = 1500, overlap = 200): Chunk[
       id: `chunk-${index}`,
       text: chunkContent,
       index,
+      totalChunks: 0, // placeholder, fixed below
     });
 
     index++;
     // move start forward by (chunkSize - overlap) so chunks overlap
     start += chunkSize - overlap;
   }
+
+    chunks.forEach((c) => (c.totalChunks = chunks.length));
 
   return chunks;
 }
