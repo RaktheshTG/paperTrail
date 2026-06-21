@@ -45,7 +45,14 @@ export async function fetchPaperText(url: string): Promise<{ title: string; text
 
   // trim to first 12000 characters — Groq has a token limit
   // 12000 chars ≈ 3000 tokens, well within free tier limits
-  const trimmed = text.replace(/\s+/g, " ").trim().slice(0, 80000);
+  const cleanedOfMath = text
+  .replace(/\\[a-zA-Z]+\{[^}]*\}/g, "")        // removes things like \epsilon{ls}
+  .replace(/[a-zA-Z]+subscript[^\s]+/g, "")     // removes "dksubscript..." patterns
+  .replace(/×10\^?\d+/g, "")                     // removes scientific notation artifacts
+  .replace(/[a-zA-Z]+superscript[^\s]+/g, "")    // NEW: catches "superscript" pattern too
+  .replace(/\\[a-zA-Z]+/g, "");                  // removes remaining LaTeX commands like \alpha
+
+  const trimmed = cleanedOfMath.replace(/\s+/g, " ").trim().slice(0, 80000);
 
   return { title, text: trimmed };
 }

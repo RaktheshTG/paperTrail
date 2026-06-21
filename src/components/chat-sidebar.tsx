@@ -2,6 +2,35 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { askQuestion } from "@/lib/groq";
 
+
+function formatMessage(content: string) {
+  const parts = content.split("[BEYOND THE PAPER]");
+  const paperPart = parts[0].trim();
+  const beyondPart = parts[1]?.trim();
+
+  const paragraphs = paperPart.split("\n\n").filter(Boolean);
+
+  return (
+    <div className="space-y-3">
+      {paragraphs.map((p, i) => (
+        <p key={i} className="leading-relaxed">{p}</p>
+      ))}
+      {beyondPart && (
+        <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+            Beyond the paper
+          </div>
+          <div className="space-y-2">
+            {beyondPart.split("\n\n").filter(Boolean).map((p, i) => (
+              <p key={i} className="leading-relaxed text-foreground/80">{p}</p>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Msg = { role: "user" | "assistant"; content: string; sources?: import("@/lib/chunk").Chunk[] };
 
 export function ChatSidebar({
@@ -62,10 +91,10 @@ export function ChatSidebar({
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={
               m.role === "user"
-                ? "max-w-[85%] rounded-xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground"
-                : "max-w-[85%] rounded-xl rounded-bl-sm border bg-muted px-3 py-2 text-sm text-foreground"
+                ? "max-w-[85%] rounded-xl rounded-br-sm bg-primary px-4 py-3 text-sm text-primary-foreground"
+                : "max-w-[85%] rounded-xl rounded-bl-sm border bg-muted px-4 py-3 text-sm text-foreground"
             }>
-              {m.content}
+              {m.role === "assistant" ? formatMessage(m.content) : m.content}
             </div>
           </div>
         ))}

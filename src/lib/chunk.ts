@@ -14,7 +14,16 @@ export function chunkText(text: string, chunkSize = 1500, overlap = 200): Chunk[
   let index = 0;
 
   while (start < text.length) {
-    const end = Math.min(start + chunkSize, text.length);
+    let end = Math.min(start + chunkSize, text.length);
+
+    // try to extend slightly to the next sentence boundary (full stop + space + capital letter)
+    // but don't search past +150 extra characters, to avoid runaway chunks
+    const searchWindow = text.slice(end, Math.min(end + 150, text.length));
+    const sentenceEndMatch = searchWindow.match(/\. [A-Z]/);
+    if (sentenceEndMatch && sentenceEndMatch.index !== undefined) {
+      end = end + sentenceEndMatch.index + 1; // +1 to include the period itself
+    }
+
     const chunkContent = text.slice(start, end);
 
     chunks.push({

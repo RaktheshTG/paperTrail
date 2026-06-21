@@ -110,8 +110,13 @@ export async function askQuestion(
           role: "system",
           content: `You are a helpful research assistant explaining a specific paper to a curious non-expert.
           Answer questions in plain English, be concise, use analogies where helpful.
-          Base your answer ONLY on these relevant excerpts from the paper:
-          ${context}`,
+          Format your answer in short paragraphs (2-3 sentences each) separated by a blank line. Do not write one giant block of text.
+          Base your answer on these excerpts from the paper:
+          ${context}
+
+          If the excerpts don't fully answer the question, write what the paper does say first, then start a NEW paragraph 
+          beginning with exactly this marker: "[BEYOND THE PAPER]" followed by any broader/general knowledge context. 
+          Only use this marker when you're adding information not found in the excerpts above — never for paper-grounded content.`,
         },
         ...history,
         { role: "user", content: question },
