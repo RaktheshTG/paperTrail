@@ -289,6 +289,8 @@ function PaperTrail() {
             onToggleDepth={toggleDepth}
             regenerating={regenerating}
             onSourcesUpdate={setLatestSources}
+            keyTerms={paperData.keyTerms}
+
           />
         )}
       </main>
@@ -386,7 +388,7 @@ function ResultsState({
   regenerating,
   sources,
   onSourcesUpdate,
-  
+  keyTerms,
 }: {
   paperData: PaperData;
   onReset: () => void;
@@ -396,6 +398,7 @@ function ResultsState({
   regenerating: boolean;
   sources: import("@/lib/chunk").Chunk[];
   onSourcesUpdate: (sources: import("@/lib/chunk").Chunk[]) => void;
+  keyTerms: string[];
 }) {
   return (
     <div className="animate-fade-in-up">
@@ -424,7 +427,7 @@ function ResultsState({
         </div>
         <div className="lg:col-span-2">
           <div className="h-[680px] lg:sticky lg:top-24">
-            <ChatSidebar namespace={namespace} onSourcesUpdate={onSourcesUpdate} />
+            <ChatSidebar namespace={namespace} onSourcesUpdate={onSourcesUpdate} keyTerms={keyTerms} />
           </div>
         </div>
       </div>

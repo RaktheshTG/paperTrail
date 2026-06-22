@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { askQuestion } from "@/lib/groq";
+import { highlightTerms } from "@/lib/highlight";
 
 
-function formatMessage(content: string) {
-  const parts = content.split("[BEYOND THE PAPER]");
+
+function formatMessage(content: string, keyTerms: string[]): React.ReactNode {
+    const parts = content.split("[BEYOND THE PAPER]");
   const paperPart = parts[0].trim();
   const beyondPart = parts[1]?.trim();
 
@@ -13,7 +15,7 @@ function formatMessage(content: string) {
   return (
     <div className="space-y-3">
       {paragraphs.map((p, i) => (
-        <p key={i} className="leading-relaxed">{p}</p>
+        <p key={i} className="leading-relaxed">{highlightTerms(p, keyTerms)}</p>
       ))}
       {beyondPart && (
         <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3">
@@ -22,7 +24,7 @@ function formatMessage(content: string) {
           </div>
           <div className="space-y-2">
             {beyondPart.split("\n\n").filter(Boolean).map((p, i) => (
-              <p key={i} className="leading-relaxed text-foreground/80">{p}</p>
+              <p key={i} className="leading-relaxed">{highlightTerms(p, keyTerms)}</p>
             ))}
           </div>
         </div>
@@ -36,9 +38,13 @@ type Msg = { role: "user" | "assistant"; content: string; sources?: import("@/li
 export function ChatSidebar({
   namespace,
   onSourcesUpdate,
+    keyTerms,
+
 }: {
   namespace: string;
   onSourcesUpdate?: (sources: import("@/lib/chunk").Chunk[]) => void;
+    keyTerms: string[];
+
 }) {
     const storageKey = `papertrail-chat-${namespace}`;
 
@@ -113,7 +119,7 @@ export function ChatSidebar({
                 ? "max-w-[85%] rounded-xl rounded-br-sm bg-primary px-4 py-3 text-sm text-primary-foreground"
                 : "max-w-[85%] rounded-xl rounded-bl-sm border bg-muted px-4 py-3 text-sm text-foreground"
             }>
-              {m.role === "assistant" ? formatMessage(m.content) : m.content}
+              {m.role === "assistant" ? formatMessage(m.content, keyTerms) : m.content}
             </div>
           </div>
         ))}
