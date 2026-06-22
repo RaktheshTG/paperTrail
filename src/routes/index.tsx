@@ -5,13 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConceptMap } from "@/components/concept-map";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { fetchAnyPaper, extractArxivId, extractPubMedId  } from "@/lib/paper";
-import { generateSummary, generateWhyItMatters, generateConceptMap } from "@/lib/groq";
+import { generateSummary, generateWhyItMatters, generateConceptMap, generateKeyTerms } from "@/lib/groq";
 import { DEMO_PAPERS, LOADING_MESSAGES } from "@/lib/demo-data";
 import { chunkText, findPageForChunk  } from "@/lib/chunk";
 import { getEmbeddings } from "@/lib/embeddings";
 import { setVectorStore, clearVectorStore } from "@/lib/vectorStore";
 import { extractTextFromPdf } from "@/lib/pdfUpload";
 import { Upload } from "lucide-react";
+import { highlightTerms } from "@/lib/highlight";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,6 +36,7 @@ export type PaperData = {
     nodes: { id: string; label: string; definition: string }[];
     edges: { from: string; to: string; label: string }[];
   };
+  keyTerms: string[];
 };
 
 function PaperTrail() {
@@ -102,7 +104,17 @@ function PaperTrail() {
       setLoadingMsg("Mapping key concepts...");
       const conceptMap = await generateConceptMap(text);
 
-      setPaperData({ title, text, summary, whyItMatters, conceptMap });
+      // Option B: concept map node labels
+      const conceptTerms = conceptMap.nodes.map((n) => n.label);
+
+      // Option A: Groq extracts additional terms from the summary
+      setLoadingMsg("Identifying key terms...");
+      const groqTerms = await generateKeyTerms(summary, conceptTerms);
+
+      // merge and deduplicate (case-insensitive)
+      const allTerms = [...new Set([...conceptTerms, ...groqTerms].map((t) => t.toLowerCase()))];
+
+      setPaperData({ title, text, summary, whyItMatters, conceptMap, keyTerms: allTerms });
       setState("results");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -148,7 +160,17 @@ function PaperTrail() {
     setLoadingMsg("Mapping key concepts...");
     const conceptMap = await generateConceptMap(text);
 
-    setPaperData({ title, text, summary, whyItMatters, conceptMap });
+    // Option B: concept map node labels
+    const conceptTerms = conceptMap.nodes.map((n) => n.label);
+
+    // Option A: Groq extracts additional terms from the summary
+    setLoadingMsg("Identifying key terms...");
+    const groqTerms = await generateKeyTerms(summary, conceptTerms);
+
+    // merge and deduplicate (case-insensitive)
+    const allTerms = [...new Set([...conceptTerms, ...groqTerms].map((t) => t.toLowerCase()))];
+
+    setPaperData({ title, text, summary, whyItMatters, conceptMap, keyTerms: allTerms });
     setState("results");
   } catch (err) {
     setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -483,7 +505,7 @@ function InsightsDashboard({
             </div>
             <div className={`space-y-4 text-[15px] leading-relaxed text-foreground/90 transition-opacity ${regenerating ? "opacity-40" : "opacity-100"}`}>
               {paperData.summary.split("\n\n").map((p, i) => (
-                <p key={i}>{p}</p>
+                <p key={i}>{highlightTerms(p, paperData.keyTerms)}</p>
               ))}
             </div>
           </div>
@@ -505,7 +527,7 @@ function InsightsDashboard({
             </div>
             <div className="space-y-4 text-[15px] leading-relaxed text-foreground/90">
               {paperData.whyItMatters.split("\n\n").map((p, i) => (
-                <p key={i}>{p}</p>
+                <p key={i}>{highlightTerms(p, paperData.keyTerms)}</p>
               ))}
             </div>
           </div>
@@ -529,7 +551,12 @@ function InsightsDashboard({
                       </div>
                     </div>
                     <p className="text-sm leading-relaxed text-foreground/75">
-                      {s.text.length > 400 ? s.text.slice(0, 400).trim() + "…" : s.text}
+                      <p className="text-sm leading-relaxed text-foreground/75">
+                        {highlightTerms(
+                          s.text.length > 400 ? s.text.slice(0, 400).trim() + "…" : s.text,
+                          paperData.keyTerms
+                        )}
+                      </p>
                     </p>
                   </div>
                   ))}

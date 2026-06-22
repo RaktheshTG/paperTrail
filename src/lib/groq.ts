@@ -133,3 +133,24 @@ export async function askQuestion(
   const data = await res.json();
   return { answer: data.choices[0].message.content, sources: relevantChunks };
 }
+
+export async function generateKeyTerms(summary: string, conceptNodes: string[]): Promise<string[]> {
+  const raw = await callGroq(
+    `You are an expert at identifying important terms in scientific text.
+    Return ONLY a valid JSON array of strings — no explanation, no markdown, no code blocks.
+    Example: ["term one", "term two", "term three"]
+    Rules:
+    - Extract 8-12 additional important terms from the summary text
+    - Do NOT include terms already in this list: ${JSON.stringify(conceptNodes)}
+    - Prefer specific technical terms, named methods, and key concepts over generic words
+    - Single words or short phrases only (max 3 words each)`,
+    `Extract key terms from this summary:\n\n${summary}`
+  );
+
+  try {
+    const cleaned = raw.replace(/```json|```/g, "").trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return [];
+  }
+}
