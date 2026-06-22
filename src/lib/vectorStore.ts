@@ -92,3 +92,27 @@ export async function findRelevantChunks(
     page: match.metadata.page ?? undefined,
   }));
 }
+
+export async function namespaceExists(namespace: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${PINECONE_HOST}/describe_index_stats`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Api-Key": PINECONE_API_KEY,
+        "X-Pinecone-API-Version": "2025-04",
+      },
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const namespaces = data.namespaces ?? {};
+    return namespace in namespaces && namespaces[namespace].vectorCount > 0;
+  } catch {
+    return false;
+  }
+}
+
+//  Pinecone's describe_index_stats endpoint returns a map of all namespaces currently in 
+//  your index with their vector counts. We check if our specific namespace exists AND 
+//  has vectors (count > 0) — if yes, we can skip the whole embed+upload step.

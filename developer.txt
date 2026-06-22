@@ -673,3 +673,70 @@ gpt 4o is arxiv link only but error because of unicode crash ( somehow it surpas
 cleaning and broke when JSON-encoding for Pinecone. )
 
 const cleanedOfBadUnicode = cleanedOfMath.replace(/[\uD800-\uDFFF]/g, "");
+
+
+PROGRESS :
+✅ arXiv + PubMed/PMC ingestion
+✅ PDF upload (fallback for everything else)
+✅ Real RAG: chunking (sentence-aware) + Cohere + Pinecone
+✅ Grounded Q&A with honest "[Beyond the paper]" labeling
+✅ Multi-turn chat (bug fixed)
+✅ Source citations tab (cleaned formatting)
+✅ Adaptive depth toggle (Simpler/Technical) with caching
+✅ Chat history persists (localStorage)
+✅ Full session persists across refresh (localStorage)
+✅ LaTeX/Unicode text cleanup
+✅ Demo papers all working (fixed AlphaFold→BERT)
+
+⬜ Highlight key terms (Summary/Why It Matters/Sources/Chat) — deferred earlier
+⬜ Caching across sessions (skip re-processing if same paper submitted twice)
+⬜ Error handling polish (more edge cases — empty PDFs, network failures, etc.)
+⬜ Deploy to Vercel
+⬜ Week 4 backlog: UI redesign, paper history list, compare 2 papers
+
+---------------------------- Day 4 END -------------------------------------------------------
+
+NEXT :
+Highlighting important keywords -
+The plan :
+1. Extract terms from concept map nodes (Option B) — already have these
+2. After summary is generated, ask Groq for additional key terms (Option A) — one small extra call
+3. Merge both lists, deduplicate
+4. Store as a new field in paperData: keyTerms: string[]
+5. Build a highlight utility function that wraps matching words in a styled <mark>
+6. Apply it across Summary, Why It Matters, Sources tab, and Chat
+
+initially was planning on either concept map or grok api direct asking. now implementing both.
+
+Finished highlighting. it aint that good but its progress. since it is implemented i ll skip
+it for now and polish it later.
+
+NEXT :
+CACHING -
+Why caching ?
+every time paper link is pasted, it is sent to grok then chunks then embeddings then vector
+store then retrieval. this same process is repeasted again for same paper aftrer 2 to 3 papers
+or simply on page refresh.
+So basically processing alreayd processed paper many times. ( waste of groq quota limit and time )
+Vector embeddings also redone because of clearVectorStore function.
+
+There is no memeory of previous papers.
+Thus 2 level caching to stop re processing :
+Layer 1 — localStorage cache (fast, client-side)
+
+Store the generated outputs (summary, whyItMatters, conceptMap, keyTerms) keyed by the 
+paper's namespace (arXiv ID or PMC ID). On submission, check localStorage first — if we 
+have outputs for this exact paper, skip straight to results without calling Groq at all.
+
+
+Layer 2 — Pinecone namespace check (for the vector side)
+
+Before uploading vectors, check if this namespace already has vectors in Pinecone. 
+If yes, skip the Cohere embedding + Pinecone upload entirely — the vectors are already 
+there for Q&A.
+
+With caching:
+First time submitting paper X:  full pipeline, ~45 seconds
+Second time submitting paper X: instant load from localStorage,vectors already in Pinecone for chat.
+This is also a real production pattern — it's called "MEMOIZATION" at the application level. ( Interview imp )
+
